@@ -5,9 +5,9 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.CollectionUtils;
+import net.coderbot.iris.texture.TextureTracker;
+import net.coderbot.iris.texture.pbr.loader.PBRTextureLoaderRegistry;
 import net.irisshaders.iris.api.v0.IrisApi;
-import net.irisshaders.iris.texture.TextureTracker;
-import net.irisshaders.iris.texture.pbr.loader.PBRTextureLoaderRegistry;
 
 import java.util.HashSet;
 import java.util.Set;

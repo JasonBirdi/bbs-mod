@@ -2,9 +2,9 @@ package mchorse.bbs_mod.utils.iris;
 
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.StringUtils;
-import net.irisshaders.iris.targets.backed.NativeImageBackedSingleColorTexture;
-import net.irisshaders.iris.texture.pbr.PBRType;
-import net.irisshaders.iris.texture.pbr.loader.PBRTextureLoader;
+import net.coderbot.iris.rendertarget.NativeImageBackedSingleColorTexture;
+import net.coderbot.iris.texture.pbr.PBRType;
+import net.coderbot.iris.texture.pbr.loader.PBRTextureLoader;
 import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.resource.ResourceManager;
 
