@@ -325,7 +325,7 @@ Supporters
         this.add("yauhyeah").withDate(5, 2);
         this.add("long xiao").withDate(5, 2);
         this.add("1Frezzy").withDate(5, 2);
-        this.add("Gatha").withDate(5, 2);
+        this.add("Jeffin").withDate(5, 2);
         this.add("Tahyme").withDate(5, 2);
         this.add("MineCrafty").withDate(5, 3);
         this.add("TomyCresyler").withDate(5, 4);
@@ -376,7 +376,7 @@ Supporters
         this.add("CirtusWasHere").withDate(5, 20);
         this.add("Sam S").withDate(5, 20);
         this.add("Aesthics").withDate(5, 20);
-        this.add("FavreMySabre").withDate(5, 20);
+        this.add("FavreMySabre", "https://www.youtube.com/channel/UCE8AXzs4x8VDoC58JYppO2g").withDate(5, 20);
         this.add("Hunted", "...").withDate(5, 21);
 
         // Thank you very much for donation! 😊 Is $ is the name you want to be included in BBS mod?
@@ -425,6 +425,9 @@ Supporters
         this.add("ZombieGamerz").withDate(5, 16);
         this.add("momfc").withDate(5, 19);
         this.add("TheMANTLE").withDate(5, 20);
+        this.add("GensaMine").withDate(5, 21);
+        this.add("-AVACH-").withDate(5, 22);
+        this.add("Найтингейл", "https://www.youtube.com/@19gale").withDate(5, 22);
 
         /* Custom */
         this.add("Hrymka", "...", "textures/banners/hrymka.png").withDate(3, 6);
