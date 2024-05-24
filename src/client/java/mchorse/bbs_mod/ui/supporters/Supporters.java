@@ -360,7 +360,7 @@ Supporters
         this.add("novaplays123").withDate(5, 14);
         this.add("WiserLake").withDate(5, 15);
         this.add("Flayming MC", "https://www.youtube.com/channel/UC3b8_VlQVXpu7e0MUPLHdBA", "textures/banners/flayming.png").withDate(5, 16);
-        this.add("Storm Clouds").withDate(5, 16);
+        this.add("SteelChikorita").withDate(5, 16);
         this.add("Thiago A. de S.").withDate(5, 17);
         this.add("Matthew B.").withDate(5, 17);
         this.add("LegalCraftPlayz").withDate(5, 17);
@@ -373,7 +373,7 @@ Supporters
         this.add("Ben").withDate(5, 19);
         this.add("Matthew White").withDate(5, 19);
         this.add("Airb0ll").withDate(5, 19);
-        this.add("CirtusWasHere").withDate(5, 20);
+        this.add("CitrusWasHere").withDate(5, 20);
         this.add("Sam S").withDate(5, 20);
         this.add("Aesthics").withDate(5, 20);
         this.add("FavreMySabre", "https://www.youtube.com/channel/UCE8AXzs4x8VDoC58JYppO2g").withDate(5, 20);
