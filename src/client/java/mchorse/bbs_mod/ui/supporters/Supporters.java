@@ -363,7 +363,7 @@ Supporters
         this.add("SteelChikorita").withDate(5, 16);
         this.add("Thiago A. de S.").withDate(5, 17);
         this.add("Matthew B.").withDate(5, 17);
-        this.add("LegalCraftPlayz").withDate(5, 17);
+        this.add("LegalStudioz").withDate(5, 17);
         this.add("NovaDoesGaming").withDate(5, 17);
         this.add("Aaron").withDate(5, 18);
         this.add("Gorian cf").withDate(5, 18);
