@@ -169,6 +169,10 @@ Supporters
         this.add("Turmeric茶").withDate(5, 16);
         this.add("余生酱ovo").withDate(5, 16);
         this.add("华燃王小灭").withDate(5, 16);
+        this.add("纽埃柯丝DEV").withDate(5, 18);
+        this.add("牧尘瑞斯muchenruisi").withDate(5, 19);
+        this.add("YuSheng_ovo").withDate(5, 20);
+        this.add("hulong").withDate(5, 24);
 
         /* Patreon */
         this.add("terbin", "https://www.youtube.com/channel/UCD4X2slLdD_WJxlW03JPVQQ", "...").withDate(2, 23);
@@ -185,7 +189,7 @@ Supporters
         this.add("Joziah3", "https://www.youtube.com/channel/UC8cnHS3Ub_EEzuaESD8E-ow").withDate(2, 24);
         this.add("CreeperGoldMC").withDate(2, 24);
         this.add("Roma on YouTube").withDate(2, 24);
-        this.add("Markus").withDate(2, 24);
+        this.add("Kazuma").withDate(2, 24);
         this.add("JesseMauve", "https://www.youtube.com/@JesseMauve/videos").withDate(2, 24);
         this.add("Gugli").withDate(2, 24);
         this.add("theFallEquinox").withDate(2, 24);
@@ -361,7 +365,7 @@ Supporters
         this.add("WiserLake").withDate(5, 15);
         this.add("Flayming MC", "https://www.youtube.com/channel/UC3b8_VlQVXpu7e0MUPLHdBA", "textures/banners/flayming.png").withDate(5, 16);
         this.add("SteelChikorita").withDate(5, 16);
-        this.add("Thiago A. de S.").withDate(5, 17);
+        this.add("Thiago Almeida de Souza").withDate(5, 17);
         this.add("Matthew B.").withDate(5, 17);
         this.add("LegalStudioz").withDate(5, 17);
         this.add("NovaDoesGaming").withDate(5, 17);
@@ -378,8 +382,18 @@ Supporters
         this.add("Aesthics").withDate(5, 20);
         this.add("FavreMySabre", "https://www.youtube.com/channel/UCE8AXzs4x8VDoC58JYppO2g").withDate(5, 20);
         this.add("Hunted", "...").withDate(5, 21);
+        this.add("Berko Bey").withDate(5, 21);
+        this.add("Kenji LEPINAY").withDate(5, 21);
+        this.add(". 루").withDate(5, 22);
+        this.add("Dima T.").withDate(5, 22);
+        this.add("Kadukos").withDate(5, 22);
+        this.add("Mattux").withDate(5, 22);
+        this.add("Coriníon M.-L.").withDate(5, 23);
+        this.add("Bobicraft").withDate(5, 23);
+        this.add("Fogarty Fox").withDate(5, 24);
+        this.add("MattNight").withDate(5, 25);
 
-        // Thank you very much for donation! 😊 Is $ is the name you want to be included in BBS mod?
+        // Thank you very much for donation! 😊 Is MattNight is the name you want to be included in BBS mod?
         // Thank you very much for donation! 😊 Is $ is the name you want to be included in BBS mod? Also, you can provide a link to your social media account (like YouTube, Twitter, TikTok, etc.)
 
         /* Boosty */
@@ -428,6 +442,8 @@ Supporters
         this.add("GensaMine").withDate(5, 21);
         this.add("-AVACH-").withDate(5, 22);
         this.add("Найтингейл", "https://www.youtube.com/@19gale").withDate(5, 22);
+        this.add("b0b0b0").withDate(5, 23);
+        this.add("Zing").withDate(5, 23);
 
         /* Custom */
         this.add("Hrymka", "...", "textures/banners/hrymka.png").withDate(3, 6);
