@@ -26,7 +26,10 @@
         "sodium.ColorAttributeMixin",
         "iris.EntityVertexMixin",
         "KeyboardInputMixin",
-        "EntityRendererMixin"
+        "EntityRendererMixin",
+        "iris.IrisRenderingPipelineAccessor",
+        "iris.CustomUniformsBuilderMixin",
+        "iris.CustomUniformsAccessor"
     ],
     "injectors": {
         "defaultRequire": 1
