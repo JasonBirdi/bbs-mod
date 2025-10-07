@@ -22,6 +22,7 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -1125,6 +1126,8 @@ public class UIFilmController extends UIElement
                 Recorder.renderCameraPreview(this.panel.getRunner().getPosition(), context.camera(), context.matrixStack());
             }
         }
+        
+        // Gizmo rendering is now handled in BaseFilmController.java
 
         Mouse mouse = MinecraftClient.getInstance().mouse;
         int x = (int) mouse.getX();
@@ -1266,5 +1269,96 @@ public class UIFilmController extends UIElement
         {
             this.stencil.resizeGUI(w, h);
         }
+    }
+    
+    /* Gizmo rendering for bone manipulation */
+    
+    private String lastRenderedBone = "";
+    private int frameCount = 0;
+    
+    private void renderGizmo(WorldRenderContext context)
+    {
+        // Get the currently selected bone from the keyframe editor
+        Pair<String, Boolean> boneInfo = this.getBone();
+        
+        if (boneInfo == null || boneInfo.a.isEmpty())
+        {
+            // Only log when bone selection changes
+            if (!lastRenderedBone.isEmpty())
+            {
+                System.out.println("[GIZMO] No bone selected - gizmo hidden");
+                lastRenderedBone = "";
+            }
+            return; // No bone selected
+        }
+        
+        String selectedBone = boneInfo.a;
+        
+        // Only log when bone selection changes or every 60 frames (1 second at 60fps)
+        if (!selectedBone.equals(lastRenderedBone) || frameCount % 60 == 0)
+        {
+            System.out.println("[GIZMO] Rendering gizmo for bone: " + selectedBone);
+            lastRenderedBone = selectedBone;
+        }
+        
+        frameCount++;
+        
+        // Get the bone's world position and render the gizmo there
+        MatrixStack stack = context.matrixStack();
+        
+        stack.push();
+        
+        // Try rendering at the camera position first to test visibility
+        net.minecraft.client.render.Camera mcCamera = context.camera();
+        
+        if (mcCamera != null)
+        {
+            // Render gizmo at camera position + forward direction for testing
+            stack.translate(mcCamera.getPos().x, mcCamera.getPos().y, mcCamera.getPos().z);
+            stack.translate(0, 0, -3); // 3 units in front of camera
+        }
+        else
+        {
+            // Fallback to origin
+            stack.translate(0, 1, 0);
+        }
+        
+        // Enable depth testing and blending for proper rendering
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        
+        // Test with VERY LARGE simple axes first to verify rendering context
+        try
+        {
+            // Make axes much larger and more visible
+            Draw.coolerAxes(stack, 5.0F, 0.5F);
+            
+            // Add a simple colored sphere to make sure rendering works
+            stack.push();
+            stack.translate(0, 2, 0); // Move sphere up a bit
+            Draw.renderGizmoSphere(stack, 0.5F, 1.0F, 0.0F, 0.0F, 1.0F); // Red sphere
+            stack.pop();
+            
+            System.out.println("[GIZMO] Rendered large axes and red sphere");
+        }
+        catch (Exception e)
+        {
+            System.out.println("[GIZMO] ERROR in Draw.coolerAxes(): " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // Also try the enhanced gizmo
+        try
+        {
+            Draw.renderBasicGizmo(stack, 2.0F, -1); // -1 = no active axis, larger scale
+        }
+        catch (Exception e)
+        {
+            System.out.println("[GIZMO] ERROR in Draw.renderBasicGizmo(): " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        stack.pop();
     }
 }

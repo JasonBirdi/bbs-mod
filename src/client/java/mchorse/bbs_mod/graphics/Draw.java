@@ -223,4 +223,166 @@ public class Draw
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
+
+    /* Gizmo rendering methods for 3D manipulation */
+    
+    public static void renderGizmoSphere(MatrixStack stack, float radius, float r, float g, float b, float a)
+    {
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        
+        // Create a more detailed sphere using multiple horizontal and vertical rings
+        int horizontalSegments = 12;
+        int verticalSegments = 8;
+        float thickness = 0.008F;
+        
+        // Horizontal rings
+        for (int i = 0; i < horizontalSegments; i++)
+        {
+            float angle1 = (float) (i * 2 * Math.PI / horizontalSegments);
+            float angle2 = (float) ((i + 1) * 2 * Math.PI / horizontalSegments);
+            
+            float x1 = (float) (Math.cos(angle1) * radius);
+            float z1 = (float) (Math.sin(angle1) * radius);
+            float x2 = (float) (Math.cos(angle2) * radius);
+            float z2 = (float) (Math.sin(angle2) * radius);
+            
+            // Multiple horizontal rings at different heights
+            for (int h = 0; h < verticalSegments; h++)
+            {
+                float height = (float) ((h - verticalSegments / 2) * 2 * radius / verticalSegments);
+                float ringRadius = (float) Math.sqrt(radius * radius - height * height);
+                
+                if (ringRadius > 0.01F)
+                {
+                    float x1_scaled = x1 * ringRadius / radius;
+                    float z1_scaled = z1 * ringRadius / radius;
+                    float x2_scaled = x2 * ringRadius / radius;
+                    float z2_scaled = z2 * ringRadius / radius;
+                    
+                    fillBox(builder, stack, x1_scaled - thickness, height - thickness, z1_scaled - thickness, 
+                           x1_scaled + thickness, height + thickness, z1_scaled + thickness, r, g, b, a);
+                    fillBox(builder, stack, x2_scaled - thickness, height - thickness, z2_scaled - thickness, 
+                           x2_scaled + thickness, height + thickness, z2_scaled + thickness, r, g, b, a);
+                }
+            }
+        }
+        
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+    }
+    
+    public static void renderRotationRing(MatrixStack stack, float radius, float r, float g, float b, float a, int activeAxis)
+    {
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        
+        int segments = 64; // More segments for smoother rings
+        float thickness = 0.015F;
+        float innerRadius = radius - thickness;
+        float outerRadius = radius + thickness;
+        
+        // Adjust colors for active state
+        float finalR = r, finalG = g, finalB = b;
+        if (activeAxis != -1)
+        {
+            finalR = Math.min(1.0F, r + 0.4F);
+            finalG = Math.min(1.0F, g + 0.4F);
+            finalB = Math.min(1.0F, b + 0.4F);
+        }
+        
+        // Render ring as a series of connected quads
+        for (int i = 0; i < segments; i++)
+        {
+            float angle1 = (float) (i * 2 * Math.PI / segments);
+            float angle2 = (float) ((i + 1) * 2 * Math.PI / segments);
+            
+            float x1_inner = (float) (Math.cos(angle1) * innerRadius);
+            float z1_inner = (float) (Math.sin(angle1) * innerRadius);
+            float x1_outer = (float) (Math.cos(angle1) * outerRadius);
+            float z1_outer = (float) (Math.sin(angle1) * outerRadius);
+            
+            float x2_inner = (float) (Math.cos(angle2) * innerRadius);
+            float z2_inner = (float) (Math.sin(angle2) * innerRadius);
+            float x2_outer = (float) (Math.cos(angle2) * outerRadius);
+            float z2_outer = (float) (Math.sin(angle2) * outerRadius);
+            
+            // Render ring segment as a quad
+            fillBox(builder, stack, x1_inner, -thickness, z1_inner, x1_outer, thickness, z1_outer, finalR, finalG, finalB, a);
+            fillBox(builder, stack, x2_inner, -thickness, z2_inner, x2_outer, thickness, z2_outer, finalR, finalG, finalB, a);
+            
+            // Connect the segments
+            fillBox(builder, stack, x1_outer, -thickness, z1_outer, x2_outer, thickness, z2_outer, finalR, finalG, finalB, a);
+            fillBox(builder, stack, x1_inner, -thickness, z1_inner, x2_inner, thickness, z2_inner, finalR, finalG, finalB, a);
+        }
+        
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+    }
+    
+    public static void renderRotationArrow(MatrixStack stack, float radius, float r, float g, float b, float a)
+    {
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        
+        // Render a small arrow on the ring to indicate rotation direction
+        float arrowLength = 0.08F;
+        float arrowWidth = 0.03F;
+        
+        // Arrow pointing in positive rotation direction
+        fillBox(builder, stack, radius + arrowLength/2, -arrowWidth/2, -arrowWidth/2, 
+               radius + arrowLength, arrowWidth/2, arrowWidth/2, r, g, b, a);
+        
+        // Arrow tip
+        fillBox(builder, stack, radius + arrowLength, -arrowWidth, -arrowWidth, 
+               radius + arrowLength + arrowWidth, arrowWidth, arrowWidth, r, g, b, a);
+        
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+    }
+    
+    public static void renderBasicGizmo(MatrixStack stack, float scale, int activeAxis)
+    {
+        float gizmoScale = scale * BBSSettings.axesScale.get();
+        
+        // Render central origin sphere (smaller, more prominent)
+        renderGizmoSphere(stack, 0.04F * gizmoScale, 0.9F, 0.9F, 0.9F, 0.9F);
+        
+        // Render outer boundary sphere (more subtle)
+        renderGizmoSphere(stack, 0.22F * gizmoScale, 0.6F, 0.6F, 0.6F, 0.4F);
+        
+        // Render rotation rings for X, Y, Z axes with better colors
+        stack.push();
+        
+        // X-axis ring (magenta, horizontal)
+        stack.multiply(RotationAxis.POSITIVE_Z.rotation((float) Math.PI / 2));
+        renderRotationRing(stack, 0.18F * gizmoScale, 1.0F, 0.0F, 1.0F, 0.9F, activeAxis == 0 ? 0 : -1);
+        // Add directional arrow for X-axis
+        renderRotationArrow(stack, 0.18F * gizmoScale, 1.0F, 0.0F, 1.0F, 0.9F);
+        
+        stack.pop();
+        stack.push();
+        
+        // Y-axis ring (green, vertical)
+        renderRotationRing(stack, 0.18F * gizmoScale, 0.0F, 1.0F, 0.0F, 0.9F, activeAxis == 1 ? 1 : -1);
+        // Add directional arrow for Y-axis
+        renderRotationArrow(stack, 0.18F * gizmoScale, 0.0F, 1.0F, 0.0F, 0.9F);
+        
+        stack.pop();
+        stack.push();
+        
+        // Z-axis ring (blue, forward)
+        stack.multiply(RotationAxis.POSITIVE_X.rotation((float) Math.PI / 2));
+        renderRotationRing(stack, 0.18F * gizmoScale, 0.0F, 0.0F, 1.0F, 0.9F, activeAxis == 2 ? 2 : -1);
+        // Add directional arrow for Z-axis
+        renderRotationArrow(stack, 0.18F * gizmoScale, 0.0F, 0.0F, 1.0F, 0.9F);
+        
+        stack.pop();
+        
+        // Render the translation axes (smaller and more subtle)
+        coolerAxes(stack, 0.15F * gizmoScale, 0.008F * gizmoScale);
+    }
 }

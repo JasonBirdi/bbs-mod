@@ -178,7 +178,10 @@ public abstract class BaseFilmController
             {
                 stack.push();
                 MatrixStackUtils.multiply(stack, matrix);
-                Draw.coolerAxes(stack, 0.25F, 0.01F, 0.26F, 0.02F);
+                
+                // Render the enhanced gizmo instead of simple axes
+                Draw.renderBasicGizmo(stack, 1.0F, -1); // -1 = no active axis
+                
                 RenderSystem.enableDepthTest();
                 stack.pop();
             }
