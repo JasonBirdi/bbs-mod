@@ -184,19 +184,19 @@ public abstract class BaseFilmController
                 RenderSystem.disableCull();
 
                 float base = 0.6F;      // radius of rotation rings
-                float band = 0.06F;    // ring thickness (thicker both visually and for readability)
+                float band = 0.03F;    // ring thickness (thinner)
 
-                // XY (Z rotation) - blue 3D torus
-                Draw.renderDashedTorus(stack, base, band, 96, 16, 8, 0.55F, 0F, 0F, 1F, 0.95F);
+                // XY (Z rotation) - blue (solid)
+                Draw.renderRing(stack, base, band, 96, 0F, 0F, 1F, 0.95F);
                 // XZ (Y rotation) - green (rotate ring around X axis)
                 stack.push();
                 stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90F));
-                Draw.renderDashedTorus(stack, base, band, 96, 16, 8, 0.55F, 0F, 1F, 0F, 0.95F);
+                Draw.renderRing(stack, base, band, 96, 0F, 1F, 0F, 0.95F);
                 stack.pop();
                 // YZ (X rotation) - red (rotate ring around Y axis)
                 stack.push();
                 stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90F));
-                Draw.renderDashedTorus(stack, base, band, 96, 16, 8, 0.55F, 1F, 0F, 0F, 0.95F);
+                Draw.renderRing(stack, base, band, 96, 1F, 0F, 0F, 0.95F);
                 stack.pop();
 
                 // center sphere for selection feedback
