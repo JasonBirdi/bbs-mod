@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.film.replays;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -77,7 +78,18 @@ public class UIReplaysOverlayPanel extends UIOverlayPanel
 
             this.replays.getCurrentFirst().fp.set(b.getValue());
         });
-        this.fps = new UIToggle(UIKeys.FILM_REPLAY_FPS, (b) -> this.edit((replay) -> replay.fps.set(b.getValue())));
+        this.fps = new UIToggle(UIKeys.FILM_REPLAY_FPS, (b) -> 
+        {
+            this.edit((replay) -> replay.fps.set(b.getValue()));
+            
+            // Switch to first person camera mode when fps is enabled
+            if (b.getValue())
+            {
+                UIFilmController controller = filmPanel.getController();
+                controller.setPov(UIFilmController.CAMERA_MODE_FIRST_PERSON);
+                controller.orbit.reset();
+            }
+        });
 
         this.properties = UI.column(5, 6,
             UI.label(UIKeys.FILM_REPLAY_REPLAY),

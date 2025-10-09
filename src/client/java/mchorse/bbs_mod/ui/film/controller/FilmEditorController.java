@@ -136,8 +136,10 @@ public class FilmEditorController extends BaseFilmController
     protected void renderEntity(WorldRenderContext context, Replay replay, IEntity entity)
     {
         boolean current = this.isCurrent(entity);
-
-        if (!(this.controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON && current))
+        boolean isFirstPerson = this.controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON && current;
+        
+        // In first person sequencer mode, we still render the entity so body parts can be seen and edited
+        if (!(isFirstPerson && !replay.fps.get()))
         {
             super.renderEntity(context, replay, entity);
         }
@@ -219,10 +221,21 @@ public class FilmEditorController extends BaseFilmController
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
         Pair<String, Boolean> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
+        boolean isFirstPersonSequencer = this.isCurrent(entity) && 
+            this.controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON && 
+            replay.fps.get();
 
-        return super.getFilmControllerContext(context, replay, entity)
+        FilmControllerContext filmContext = super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickDelta()))
             .bone(bone == null ? null : bone.a, bone != null && bone.b);
+
+        // Hide the head bone when in first person sequencer mode
+        if (isFirstPersonSequencer)
+        {
+            filmContext.hiddenBone("head");
+        }
+
+        return filmContext;
     }
 
     private boolean isCurrent(IEntity entity)

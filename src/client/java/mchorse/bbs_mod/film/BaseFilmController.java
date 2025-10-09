@@ -159,7 +159,8 @@ public abstract class BaseFilmController
             .set(FormRenderType.ENTITY, entity, stack, light, overlay, transition)
             .camera(camera)
             .stencilMap(context.map)
-            .color(context.color);
+            .color(context.color)
+            .hiddenBone(context.hiddenBone);
 
         stack.push();
         MatrixStackUtils.multiply(stack, target == null ? defaultMatrix : target);

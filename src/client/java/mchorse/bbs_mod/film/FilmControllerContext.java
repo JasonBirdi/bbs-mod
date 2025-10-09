@@ -26,6 +26,7 @@ public class FilmControllerContext
 
     public String bone;
     public boolean local;
+    public String hiddenBone;
 
     public String nameTag = "";
 
@@ -39,6 +40,7 @@ public class FilmControllerContext
         this.color = Colors.WHITE;
         this.bone = null;
         this.local = false;
+        this.hiddenBone = null;
         this.nameTag = "";
     }
 
@@ -116,6 +118,13 @@ public class FilmControllerContext
     public FilmControllerContext nameTag(String nameTag)
     {
         this.nameTag = nameTag;
+
+        return this;
+    }
+
+    public FilmControllerContext hiddenBone(String hiddenBone)
+    {
+        this.hiddenBone = hiddenBone;
 
         return this;
     }
