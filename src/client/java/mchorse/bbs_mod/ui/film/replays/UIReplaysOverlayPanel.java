@@ -82,12 +82,15 @@ public class UIReplaysOverlayPanel extends UIOverlayPanel
         {
             this.edit((replay) -> replay.fps.set(b.getValue()));
             
-            // Switch to first person camera mode when fps is enabled
+            // Switch to first person camera mode and open keyframe editor when fps is enabled
             if (b.getValue())
             {
                 UIFilmController controller = filmPanel.getController();
                 controller.setPov(UIFilmController.CAMERA_MODE_FIRST_PERSON);
                 controller.orbit.reset();
+                
+                // Open the keyframe editor for first person sequencer editing
+                filmPanel.showPanel(filmPanel.replayEditor);
             }
         });
 
