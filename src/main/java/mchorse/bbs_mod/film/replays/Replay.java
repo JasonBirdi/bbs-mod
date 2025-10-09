@@ -39,6 +39,7 @@ public class Replay extends ValueGroup
 
     public final ValueBoolean actor = new ValueBoolean("actor", false);
     public final ValueBoolean fp = new ValueBoolean("fp", false);
+    public final ValueBoolean fps = new ValueBoolean("fps", false);
 
     public Replay(String id)
     {
@@ -58,6 +59,7 @@ public class Replay extends ValueGroup
 
         this.add(this.actor);
         this.add(this.fp);
+        this.add(this.fps);
     }
 
     public String getName()

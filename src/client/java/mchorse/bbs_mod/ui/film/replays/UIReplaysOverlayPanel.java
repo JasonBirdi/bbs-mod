@@ -31,6 +31,7 @@ public class UIReplaysOverlayPanel extends UIOverlayPanel
     public UITrackpad looping;
     public UIToggle actor;
     public UIToggle fp;
+    public UIToggle fps;
 
     private Consumer<Replay> callback;
 
@@ -76,6 +77,7 @@ public class UIReplaysOverlayPanel extends UIOverlayPanel
 
             this.replays.getCurrentFirst().fp.set(b.getValue());
         });
+        this.fps = new UIToggle(UIKeys.FILM_REPLAY_FPS, (b) -> this.edit((replay) -> replay.fps.set(b.getValue())));
 
         this.properties = UI.column(5, 6,
             UI.label(UIKeys.FILM_REPLAY_REPLAY),
@@ -83,7 +85,7 @@ public class UIReplaysOverlayPanel extends UIOverlayPanel
             this.label, this.nameTag,
             this.shadow, this.shadowSize,
             UI.label(UIKeys.FILM_REPLAY_LOOPING),
-            this.looping, this.actor, this.fp
+            this.looping, this.actor, this.fp, this.fps
         );
         this.properties.relative(this.content).y(1F).w(1F).anchorY(1F);
         this.replays.relative(this.content).w(1F).hTo(this.properties.area, 0F, -5);
@@ -119,6 +121,7 @@ public class UIReplaysOverlayPanel extends UIOverlayPanel
             this.looping.setValue(replay.looping.get());
             this.actor.setValue(replay.actor.get());
             this.fp.setValue(replay.fp.get());
+            this.fps.setValue(replay.fps.get());
         }
     }
 
