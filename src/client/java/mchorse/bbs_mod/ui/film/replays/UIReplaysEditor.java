@@ -24,6 +24,7 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.properties.IFormProperty;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.graphics.Gizmo3D;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.math.molang.MolangParser;
@@ -975,10 +976,8 @@ public class UIReplaysEditor extends UIElement
         }
 
         // Scale tolerance with on-screen radius to keep selection easy at any zoom
-        // Apply the same scale as the X/Y/Z axes
-        float scale = BBSSettings.axesScale.get();
-        float R = 0.35F * scale;
-        float tube = 0.06F * scale; // torus tube radius used in render
+        float R = Gizmo3D.getRingRadius(1F);
+        float tube = Gizmo3D.getRingThickness(1F) * 2F;
         Vector2f pR = projectToScreen(mvp, area, R, 0, 0);
         Vector2f pRt = projectToScreen(mvp, area, R + tube * 0.9F, 0, 0);
         float pickTol = pickTolBase;
@@ -1073,6 +1072,7 @@ public class UIReplaysEditor extends UIElement
         }
 
         // Check for axis arrow hits (for positioning) - check these first as they're more specific
+        float scale = BBSSettings.axesScale.get();
         Axis axisHit = tryPickAxisArrow(mvp, mouse, scale, area);
         if (axisHit != null)
         {
