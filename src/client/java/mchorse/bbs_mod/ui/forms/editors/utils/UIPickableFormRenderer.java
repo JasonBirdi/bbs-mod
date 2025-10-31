@@ -10,6 +10,7 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.graphics.Gizmo3D;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIModelForm;
@@ -41,6 +42,8 @@ import java.util.function.Supplier;
 
 public class UIPickableFormRenderer extends UIFormRenderer
 {
+    private static final int ORIGIN_ID = 4001;
+
     public UIFormEditor formEditor;
 
     private boolean update;
@@ -188,6 +191,9 @@ public class UIPickableFormRenderer extends UIFormRenderer
         final int ARROW_X_ID = 2001; // X arrow (translation)
         final int ARROW_Y_ID = 2002; // Y arrow (translation)
         final int ARROW_Z_ID = 2003; // Z arrow (translation)
+        final int CUBE_X_ID = 3001; // Red cube handle (X scale)
+        final int CUBE_Y_ID = 3002; // Green cube handle (Y scale)
+        final int CONE_Z_ID = 3003; // Blue cube handle (Z scale)
 
         // Set up picking shader
         ShaderProgram pickingProgram = BBSShaders.getPickerModelsProgram();
@@ -196,30 +202,62 @@ public class UIPickableFormRenderer extends UIFormRenderer
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION);
 
-        // Render rings with unique IDs
+        // Get gizmo dimensions from Gizmo3D
+        float ringThickness = Gizmo3D.getRingThickness(scale) * 1.25F;
+        float axisLength = Gizmo3D.getAxisLength(scale);
+        float axisThickness = Gizmo3D.getAxisThickness(scale) * 1.33F;
+        float arrowLength = 0.15F * scale * BBSSettings.axesScale.get();
+        float arrowWidth = 0.06F * scale * BBSSettings.axesScale.get();
+
+        // Render rings with unique IDs - each ring has different radius
         this.stencilMap.objectIndex = RING_X_ID;
-        this.renderRingForPicking(builder, stack, 0.35F * scale, 0.015F * scale, 64, 0, 90, 0); // YZ plane (X rotation)
+        this.renderRingForPicking(builder, stack, Gizmo3D.getRingRadiusRed(scale), ringThickness, 64, 0, 90, 0); // YZ plane (X rotation)
         
         this.stencilMap.objectIndex = RING_Y_ID;
-        this.renderRingForPicking(builder, stack, 0.35F * scale, 0.015F * scale, 64, 90, 0, 0); // XZ plane (Y rotation)
+        this.renderRingForPicking(builder, stack, Gizmo3D.getRingRadiusGreen(scale), ringThickness, 64, 90, 0, 0); // XZ plane (Y rotation)
         
         this.stencilMap.objectIndex = RING_Z_ID;
-        this.renderRingForPicking(builder, stack, 0.35F * scale, 0.015F * scale, 64, 0, 0, 0); // XY plane (Z rotation)
+        this.renderRingForPicking(builder, stack, Gizmo3D.getRingRadiusBlue(scale), ringThickness, 64, 0, 0, 0); // XY plane (Z rotation)
 
         // Render arrows with unique IDs - increased size for easier selection
         this.stencilMap.objectIndex = ARROW_X_ID;
-        this.renderArrowForPicking(builder, stack, 0.8F * scale, 0.016F * scale, 0.16F * scale, 0.06F * scale, 0, 0, 0); // X axis
+        this.renderArrowForPicking(builder, stack, axisLength, axisThickness, arrowLength, arrowWidth, 0, 0, 0); // X axis
         
         this.stencilMap.objectIndex = ARROW_Y_ID;
         stack.push();
         stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
-        this.renderArrowForPicking(builder, stack, 0.8F * scale, 0.016F * scale, 0.16F * scale, 0.06F * scale, 0, 0, 0); // Y axis
+        this.renderArrowForPicking(builder, stack, axisLength, axisThickness, arrowLength, arrowWidth, 0, 0, 0); // Y axis
         stack.pop();
         
         this.stencilMap.objectIndex = ARROW_Z_ID;
         stack.push();
         stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
-        this.renderArrowForPicking(builder, stack, 0.8F * scale, 0.016F * scale, 0.16F * scale, 0.06F * scale, 0, 0, 0); // Z axis
+        this.renderArrowForPicking(builder, stack, axisLength, axisThickness, arrowLength, arrowWidth, 0, 0, 0); // Z axis
+        stack.pop();
+
+        float handleSize = Gizmo3D.getHandleSize(scale) * 1.2F;
+        float handlePos = Gizmo3D.getHandlePosition(scale);
+
+        this.stencilMap.objectIndex = CUBE_X_ID;
+        this.renderCubeHandleForPicking(builder, stack, handleSize, handlePos, 0, 0, 0);
+
+        this.stencilMap.objectIndex = CUBE_Y_ID;
+        stack.push();
+        stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
+        this.renderCubeHandleForPicking(builder, stack, handleSize, handlePos, 0, 0, 0);
+        stack.pop();
+
+        this.stencilMap.objectIndex = CONE_Z_ID;
+        stack.push();
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
+        this.renderCubeHandleForPicking(builder, stack, handleSize, handlePos, 0, 0, 0);
+        stack.pop();
+
+        float originSize = Gizmo3D.getOriginSize(scale) * 1.3F;
+        this.stencilMap.objectIndex = ORIGIN_ID;
+        stack.push();
+        stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90F));
+        this.renderOriginSquareForPicking(builder, stack, originSize);
         stack.pop();
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
@@ -248,9 +286,12 @@ public class UIPickableFormRenderer extends UIFormRenderer
             float x2 = (float) Math.cos(t2) * radius;
             float y2 = (float) Math.sin(t2) * radius;
             
-            // Create a thick ring by rendering quads
+            // Create a thick ring by rendering triangles
             builder.vertex(m, x1 - halfThickness, y1, 0).next();
             builder.vertex(m, x1 + halfThickness, y1, 0).next();
+            builder.vertex(m, x2 + halfThickness, y2, 0).next();
+            
+            builder.vertex(m, x1 - halfThickness, y1, 0).next();
             builder.vertex(m, x2 + halfThickness, y2, 0).next();
             builder.vertex(m, x2 - halfThickness, y2, 0).next();
         }
@@ -270,9 +311,12 @@ public class UIPickableFormRenderer extends UIFormRenderer
         float halfThickness = thickness / 2F;
         float shaftEnd = length - arrowLength;
         
-        // Render arrow shaft
+        // Render arrow shaft as triangles
         builder.vertex(m, -length * 0.3F, -halfThickness, -halfThickness).next();
         builder.vertex(m, shaftEnd, -halfThickness, -halfThickness).next();
+        builder.vertex(m, shaftEnd, halfThickness, -halfThickness).next();
+        
+        builder.vertex(m, -length * 0.3F, -halfThickness, -halfThickness).next();
         builder.vertex(m, shaftEnd, halfThickness, -halfThickness).next();
         builder.vertex(m, -length * 0.3F, halfThickness, -halfThickness).next();
         
@@ -280,6 +324,36 @@ public class UIPickableFormRenderer extends UIFormRenderer
         builder.vertex(m, shaftEnd, -arrowWidth, -arrowWidth).next();
         builder.vertex(m, length, 0, 0).next();
         builder.vertex(m, shaftEnd, arrowWidth, -arrowWidth).next();
+    }
+
+    private void renderCubeHandleForPicking(BufferBuilder builder, MatrixStack stack, float size, float position, float rotX, float rotY, float rotZ)
+    {
+        if (rotX != 0) stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(rotX));
+        if (rotY != 0) stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(rotY));
+        if (rotZ != 0) stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotZ));
+        
+        stack.push();
+        stack.translate(position, 0, 0);
+        
+        float half = size / 2F;
+        
+        Draw.fillBox(builder, stack, -half, -half, -half, half, half, half, 1F, 1F, 1F, 1F);
+        
+        stack.pop();
+    }
+
+    private void renderOriginSquareForPicking(BufferBuilder builder, MatrixStack stack, float size)
+    {
+        Matrix4f m = stack.peek().getPositionMatrix();
+        float half = size / 2F;
+        
+        builder.vertex(m, half, half, 0).next();
+        builder.vertex(m, half, -half, 0).next();
+        builder.vertex(m, -half, -half, 0).next();
+        
+        builder.vertex(m, half, half, 0).next();
+        builder.vertex(m, -half, -half, 0).next();
+        builder.vertex(m, -half, half, 0).next();
     }
 
     private boolean handleGizmoPick(int pickedId, UIModelForm uiModelForm)
@@ -301,6 +375,23 @@ public class UIPickableFormRenderer extends UIFormRenderer
             Axis axis = pickedId == 2001 ? Axis.X : (pickedId == 2002 ? Axis.Y : Axis.Z);
             transform.beginTranslate();
             transform.setAxis(axis);
+            return true;
+        }
+        
+        // Handle cube/cone handle picks (scale on specific axis)
+        if (pickedId >= 3001 && pickedId <= 3003)
+        {
+            Axis axis = pickedId == 3001 ? Axis.X : (pickedId == 3002 ? Axis.Y : Axis.Z);
+            transform.beginScale();
+            transform.setAxis(axis);
+            return true;
+        }
+        
+        // Handle origin square pick (uniform scale)
+        if (pickedId == ORIGIN_ID)
+        {
+            transform.beginScale();
+            transform.setAxis(Axis.X);
             return true;
         }
         
@@ -382,22 +473,29 @@ public class UIPickableFormRenderer extends UIFormRenderer
             if (origin != null) mvp.mul(origin);
 
             // Render the complete transformation gizmo
-            Draw.renderTransformationGizmo(stack, scale, 1F, 1F, 1F, 0.95F);
+            Gizmo3D.render(stack, 1F, 0.95F);
 
             // Enhanced hover feedback - highlight hovered elements
             if (this.hoveredRing != null || this.hoveredArrow != null || this.hoveredCube != null)
             {
                 // Highlight the origin when any element is hovered
-                Draw.renderSphere(stack, 0.06F * scale, 12, 16, 1F, 1F, 0F, 0.8F);
+                float originSize = Gizmo3D.getRingThickness(scale) * 2F;
+                Draw.renderSphere(stack, originSize, 12, 16, 1F, 1F, 0F, 0.8F);
                 
                 // Add additional hover effects
                 if (this.hoveredRing != null)
                 {
-                    // Highlight the hovered ring with a brighter version
                     float r = this.hoveredRing == Axis.X ? 1F : 0F;
                     float g = this.hoveredRing == Axis.Y ? 1F : 0F;
                     float b = this.hoveredRing == Axis.Z ? 1F : 0F;
-                    Draw.renderRing(stack, 0.35F * scale, 0.025F * scale, 64, r, g, b, 1F);
+                    float ringRadius = switch (this.hoveredRing)
+                    {
+                        case X -> Gizmo3D.getRingRadiusRed(scale);
+                        case Y -> Gizmo3D.getRingRadiusGreen(scale);
+                        case Z -> Gizmo3D.getRingRadiusBlue(scale);
+                    };
+                    float ringThickness = Gizmo3D.getRingThickness(scale) * 2F;
+                    Draw.renderRing(stack, ringRadius, ringThickness, 64, r, g, b, 1F);
                 }
             }
 
