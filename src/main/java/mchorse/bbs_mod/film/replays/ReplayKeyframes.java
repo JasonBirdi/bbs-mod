@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.film.replays;
 
 import mchorse.bbs_mod.forms.entities.IEntity;
-import mchorse.bbs_mod.settings.values.ValueGroup;
+import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
@@ -27,7 +27,7 @@ public class ReplayKeyframes extends ValueGroup
     public static final String GROUP_EXTRA1 = "extra1";
     public static final String GROUP_EXTRA2 = "extra2";
 
-    public static final List<String> CURATED_CHANNELS = Arrays.asList("x", "y", "z", "pitch", "yaw", "headYaw", "bodyYaw", "sneaking", "sprinting", "item_main_hand", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "stick_lx", "stick_ly", "stick_rx", "stick_ry", "trigger_l", "trigger_r", "extra1_x", "extra1_y", "extra2_x", "extra2_y", "grounded", "damage", "vX", "vY", "vZ", "hotbar_selection", "inventory", "experience");
+    public static final List<String> CURATED_CHANNELS = Arrays.asList("x", "y", "z", "pitch", "yaw", "headYaw", "bodyYaw", "sneaking", "sprinting", "item_main_hand", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "selected_slot", "stick_lx", "stick_ly", "stick_rx", "stick_ry", "trigger_l", "trigger_r", "extra1_x", "extra1_y", "extra2_x", "extra2_y", "grounded", "damage", "vX", "vY", "vZ");
 
     public final KeyframeChannel<Double> x = new KeyframeChannel<>("x", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<Double> y = new KeyframeChannel<>("y", KeyframeFactories.DOUBLE);
@@ -67,6 +67,7 @@ public class ReplayKeyframes extends ValueGroup
     public final KeyframeChannel<ItemStack> armorChest = new KeyframeChannel<>("item_chest", KeyframeFactories.ITEM_STACK);
     public final KeyframeChannel<ItemStack> armorLegs = new KeyframeChannel<>("item_legs", KeyframeFactories.ITEM_STACK);
     public final KeyframeChannel<ItemStack> armorFeet = new KeyframeChannel<>("item_feet", KeyframeFactories.ITEM_STACK);
+// <<<<<<< Updated upstream
     public final KeyframeChannel<Double> hotbarSelection = new KeyframeChannel<>("hotbar_selection", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<List<ItemStack>> inventory = new KeyframeChannel<>("inventory", KeyframeFactories.INVENTORY);
     public final KeyframeChannel<Double> experience = new KeyframeChannel<>("experience", KeyframeFactories.DOUBLE);
@@ -74,6 +75,9 @@ public class ReplayKeyframes extends ValueGroup
     /* Active item state for animations like bow drawing */
     public final KeyframeChannel<ItemStack> activeItemStack = new KeyframeChannel<>("active_item_stack", KeyframeFactories.ITEM_STACK);
     public final KeyframeChannel<Double> itemUseTime = new KeyframeChannel<>("item_use_time", KeyframeFactories.DOUBLE);
+// =======
+//     public final KeyframeChannel<Integer> selectedSlot = new KeyframeChannel<>("selected_slot", KeyframeFactories.INTEGER);
+// >>>>>>> Stashed changes
 
     public ReplayKeyframes(String id)
     {
@@ -111,11 +115,15 @@ public class ReplayKeyframes extends ValueGroup
         this.add(this.armorChest);
         this.add(this.armorLegs);
         this.add(this.armorFeet);
+// <<<<<<< Updated upstream
         this.add(this.hotbarSelection);
         this.add(this.inventory);
         this.add(this.experience);
         this.add(this.activeItemStack);
         this.add(this.itemUseTime);
+// =======
+//         this.add(this.selectedSlot);
+// >>>>>>> Stashed changes
     }
 
     public List<KeyframeChannel<?>> getChannels()
@@ -238,6 +246,7 @@ public class ReplayKeyframes extends ValueGroup
             this.armorChest.insert(tick, entity.getEquipmentStack(EquipmentSlot.CHEST).copy());
             this.armorLegs.insert(tick, entity.getEquipmentStack(EquipmentSlot.LEGS).copy());
             this.armorFeet.insert(tick, entity.getEquipmentStack(EquipmentSlot.FEET).copy());
+// <<<<<<< Updated upstream
             
             // Log equipment at key intervals or when items change
             if (tick % 20 == 0 && (!mainHandStack.isEmpty() || !offHandStack.isEmpty()))
@@ -274,6 +283,9 @@ public class ReplayKeyframes extends ValueGroup
                     }
                 }
             }
+// =======
+//             this.selectedSlot.insert(tick, entity.getSelectedSlot());
+// >>>>>>> Stashed changes
         }
     }
 
@@ -375,34 +387,6 @@ public class ReplayKeyframes extends ValueGroup
         entity.setEquipmentStack(EquipmentSlot.CHEST, this.armorChest.interpolate(tick));
         entity.setEquipmentStack(EquipmentSlot.LEGS, this.armorLegs.interpolate(tick));
         entity.setEquipmentStack(EquipmentSlot.FEET, this.armorFeet.interpolate(tick));
-        
-        // Apply hotbar selection and inventory for player entities (only for ActorEntity instances)
-        if (entity instanceof mchorse.bbs_mod.forms.entities.MCEntity mcEntity)
-        {
-            net.minecraft.entity.Entity mcEntityInstance = mcEntity.getMcEntity();
-            if (mcEntityInstance instanceof net.minecraft.entity.player.PlayerEntity player)
-            {
-                int selectedSlot = this.hotbarSelection.interpolate(tick).intValue();
-                if (selectedSlot >= 0 && selectedSlot < 9)
-                {
-                    player.getInventory().selectedSlot = selectedSlot;
-                }
-                
-                // Apply the recorded inventory only for ActorEntity instances, not real players
-                // Real players should have their inventory managed at the ActionPlayer level
-                if (!(mcEntityInstance instanceof net.minecraft.server.network.ServerPlayerEntity))
-                {
-                    List<ItemStack> recordedInventory = this.inventory.interpolate(tick);
-                    if (recordedInventory != null && !recordedInventory.isEmpty())
-                    {
-                        for (int i = 0; i < Math.min(recordedInventory.size(), player.getInventory().size()); i++)
-                        {
-                            player.getInventory().setStack(i, recordedInventory.get(i).copy());
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /**

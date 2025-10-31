@@ -38,8 +38,6 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
     private Form form;
 
     private Map<EquipmentSlot, ItemStack> equipment = new HashMap<>();
-    private List<ItemStack> recordedInventory;
-    private int xpToDrop;
 
     public ActorEntity(EntityType<? extends LivingEntity> entityType, World world)
     {
@@ -173,58 +171,9 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
         nbt.putBoolean("despawn", true);
     }
 
-    /**
-     * Allow Action playback to provide recorded inventory and optional XP to drop.
-     */
-    public void setRecordedInventory(List<ItemStack> inventory)
-    {
-        this.recordedInventory = inventory;
-    }
-
-    public void setXpToDrop(int xp)
-    {
-        this.xpToDrop = Math.max(0, xp);
-    }
-
     @Override
-    public void onDeath(DamageSource damageSource)
+    protected int getPermissionLevel()
     {
-        super.onDeath(damageSource);
-
-        if (this.getWorld().isClient())
-        {
-            return;
-        }
-
-        // Drop equipped items
-        for (EquipmentSlot slot : EquipmentSlot.values())
-        {
-            ItemStack stack = this.getEquippedStack(slot);
-            if (stack != null && !stack.isEmpty())
-            {
-                this.dropStack(stack.copy());
-                this.equipStack(slot, ItemStack.EMPTY);
-            }
-        }
-
-        // Drop recorded inventory, if any
-        if (this.recordedInventory != null && !this.recordedInventory.isEmpty())
-        {
-            for (ItemStack stack : this.recordedInventory)
-            {
-                if (stack != null && !stack.isEmpty())
-                {
-                    this.dropStack(stack.copy());
-                }
-            }
-            this.recordedInventory = null;
-        }
-
-        // Drop some XP if specified
-        if (this.xpToDrop > 0)
-        {
-            ExperienceOrbEntity.spawn((ServerWorld) this.getWorld(), this.getPos(), this.xpToDrop);
-            this.xpToDrop = 0;
-        }
+        return 2;
     }
 }

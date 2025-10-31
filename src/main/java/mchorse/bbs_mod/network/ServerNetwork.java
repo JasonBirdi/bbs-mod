@@ -1,11 +1,11 @@
 package mchorse.bbs_mod.network;
 
 import mchorse.bbs_mod.BBSMod;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.actions.ActionManager;
 import mchorse.bbs_mod.actions.ActionPlayer;
 import mchorse.bbs_mod.actions.ActionRecorder;
 import mchorse.bbs_mod.actions.ActionState;
+import mchorse.bbs_mod.actions.PlayerType;
 import mchorse.bbs_mod.actions.types.FormTriggerActionClip;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.data.DataStorageUtils;
@@ -21,14 +21,9 @@ import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.items.GunProperties;
 import mchorse.bbs_mod.morphing.Morph;
-import mchorse.bbs_mod.resources.ISourcePack;
-import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.resources.packs.ExternalAssetsSourcePack;
 import mchorse.bbs_mod.utils.DataPath;
 import mchorse.bbs_mod.utils.EnumUtils;
-import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.PermissionUtils;
-import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.repos.RepositoryOperation;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -44,21 +39,17 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+// <<<<<<< Updated upstream
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
+// =======
+// >>>>>>> Stashed changes
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -75,15 +66,17 @@ public class ServerNetwork
     public static final Identifier CLIENT_HANDSHAKE = new Identifier(BBSMod.MOD_ID, "c6");
     public static final Identifier CLIENT_RECORDED_ACTIONS = new Identifier(BBSMod.MOD_ID, "c7");
     public static final Identifier CLIENT_FORM_TRIGGER = new Identifier(BBSMod.MOD_ID, "c8");
-    public static final Identifier CLIENT_ASSET = new Identifier(BBSMod.MOD_ID, "c9");
-    public static final Identifier CLIENT_REQUEST_ASSET = new Identifier(BBSMod.MOD_ID, "c10");
     public static final Identifier CLIENT_CHEATS_PERMISSION = new Identifier(BBSMod.MOD_ID, "c11");
     public static final Identifier CLIENT_SHARED_FORM = new Identifier(BBSMod.MOD_ID, "c12");
     public static final Identifier CLIENT_ENTITY_FORM = new Identifier(BBSMod.MOD_ID, "c13");
     public static final Identifier CLIENT_ACTORS = new Identifier(BBSMod.MOD_ID, "c14");
     public static final Identifier CLIENT_GUN_PROPERTIES = new Identifier(BBSMod.MOD_ID, "c15");
     public static final Identifier CLIENT_PAUSE_FILM = new Identifier(BBSMod.MOD_ID, "c16");
+// <<<<<<< Updated upstream
     public static final Identifier CLIENT_START_ITEM_USE = new Identifier(BBSMod.MOD_ID, "c17");
+// =======
+//     public static final Identifier CLIENT_SELECTED_SLOT = new Identifier(BBSMod.MOD_ID, "c17");
+// >>>>>>> Stashed changes
 
     public static final Identifier SERVER_MODEL_BLOCK_FORM_PACKET = new Identifier(BBSMod.MOD_ID, "s1");
     public static final Identifier SERVER_MODEL_BLOCK_TRANSFORMS_PACKET = new Identifier(BBSMod.MOD_ID, "s2");
@@ -95,8 +88,6 @@ public class ServerNetwork
     public static final Identifier SERVER_FILM_DATA_SYNC = new Identifier(BBSMod.MOD_ID, "s8");
     public static final Identifier SERVER_PLAYER_TP = new Identifier(BBSMod.MOD_ID, "s9");
     public static final Identifier SERVER_FORM_TRIGGER = new Identifier(BBSMod.MOD_ID, "s10");
-    public static final Identifier SERVER_REQUEST_ASSET = new Identifier(BBSMod.MOD_ID, "s11");
-    public static final Identifier SERVER_ASSET = new Identifier(BBSMod.MOD_ID, "s12");
     public static final Identifier SERVER_SHARED_FORM = new Identifier(BBSMod.MOD_ID, "s13");
     public static final Identifier SERVER_ZOOM = new Identifier(BBSMod.MOD_ID, "s14");
     public static final Identifier SERVER_PAUSE_FILM = new Identifier(BBSMod.MOD_ID, "s15");
@@ -120,8 +111,6 @@ public class ServerNetwork
         ServerPlayNetworking.registerGlobalReceiver(SERVER_FILM_DATA_SYNC, (server, player, handler, buf, responder) -> handleSyncData(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_PLAYER_TP, (server, player, handler, buf, responder) -> handleTeleportPlayer(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_FORM_TRIGGER, (server, player, handler, buf, responder) -> handleFormTrigger(server, player, buf));
-        ServerPlayNetworking.registerGlobalReceiver(SERVER_REQUEST_ASSET, (server, player, handler, buf, responder) -> handleRequestAssets(server, player, buf));
-        ServerPlayNetworking.registerGlobalReceiver(SERVER_ASSET, (server, player, handler, buf, responder) -> handleAssetPacket(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_SHARED_FORM, (server, player, handler, buf, responder) -> handleSharedFormPacket(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_ZOOM, (server, player, handler, buf, responder) -> handleZoomPacket(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_PAUSE_FILM, (server, player, handler, buf, responder) -> handlePauseFilmPacket(server, player, buf));
@@ -392,14 +381,14 @@ public class ServerNetwork
 
                     if (film != null)
                     {
-                        actionPlayer = actions.play(player, player.getServerWorld(), film, tick);
+                        actionPlayer = actions.play(player, player.getServerWorld(), film, tick, PlayerType.FILM_EDITOR);
                     }
                 }
                 else
                 {
                     actions.stop(filmId);
 
-                    actionPlayer = actions.play(player, player.getServerWorld(), actionPlayer.film, tick);
+                    actionPlayer = actions.play(player, player.getServerWorld(), actionPlayer.film, tick, PlayerType.FILM_EDITOR);
                 }
 
                 if (actionPlayer != null)
@@ -497,81 +486,6 @@ public class ServerNetwork
                 return action;
             });
         });
-    }
-
-    private static void handleRequestAssets(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
-    {
-        String path = buf.readString();
-        Link link = Link.assets(path);
-        long index = buf.readLong();
-
-        sendAsset(player, link, index);
-    }
-
-    private static void handleAssetPacket(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
-    {
-        if (!BBSSettings.serverAssetManager.get().equals(player.getUuidAsString()))
-        {
-            player.sendMessage(Text.literal("You don't have permission to upload files"), true);
-
-            return;
-        }
-
-        String path = buf.readString();
-        long offset = buf.readLong();
-
-        /* If index is -1, we gotta delete the file */
-        if (offset < 0)
-        {
-            ISourcePack sourcePack = BBSMod.getDynamicSourcePack().getSourcePack();
-
-            if (sourcePack instanceof ExternalAssetsSourcePack pack)
-            {
-                File file = new File(pack.getFolder(), path);
-
-                if (file.exists())
-                {
-                    file.delete();
-                }
-            }
-
-            return;
-        }
-
-        int size = buf.readInt();
-        boolean last = buf.readBoolean();
-        byte[] bytes = new byte[size];
-
-        buf.readBytes(bytes);
-
-        ISourcePack sourcePack = BBSMod.getDynamicSourcePack().getSourcePack();
-
-        if (sourcePack instanceof ExternalAssetsSourcePack pack)
-        {
-            File file = new File(pack.getFolder(), path);
-
-            file.getParentFile().mkdirs();
-
-            try (OutputStream stream = new FileOutputStream(file, offset != 0))
-            {
-                stream.write(bytes);
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-
-            if (!last)
-            {
-                sendRequestAsset(player, path, offset);
-            }
-            else
-            {
-                System.out.println("[Server] Received completely: " + path);
-            }
-
-            BBSMod.getResourceTracker().timer.mark();
-        }
     }
 
     private static void handleSharedFormPacket(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
@@ -745,7 +659,7 @@ public class ServerNetwork
     private static PacketByteBuf createHandshakeBuf(MinecraftServer server)
     {
         PacketByteBuf buf = PacketByteBufs.create();
-        String id = BBSSettings.serverId.get().trim();
+        String id = "";
 
         /* No need to do that in singleplayer */
         if (server.isSingleplayer())
@@ -755,84 +669,7 @@ public class ServerNetwork
 
         buf.writeString(id);
 
-        if (!id.isEmpty())
-        {
-            Collection<Link> links = BBSMod.getProvider().getLinksFromPath(Link.assets(""));
-            List<Pair<String, Long>> assets = new ArrayList<>();
-
-            for (Link link : links)
-            {
-                String extension = StringUtils.extension(link.path);
-
-                if (!extension.equals(link.path) && EXTENSIONS.contains(extension.toLowerCase()))
-                {
-                    File file = BBSMod.getProvider().getFile(link);
-                    long l = file.lastModified();
-
-                    assets.add(new Pair<>(link.path, l));
-                }
-            }
-
-            buf.writeInt(assets.size());
-
-            for (Pair<String, Long> asset : assets)
-            {
-                buf.writeString(asset.a);
-                buf.writeLong(asset.b);
-            }
-        }
-
         return buf;
-    }
-
-    public static void sendAsset(ServerPlayerEntity player, Link link, long offset)
-    {
-        try
-        {
-            File file = BBSMod.getDynamicSourcePack().getFile(link);
-            int placeholder = 1000;
-            int bufferSize = 32767 - placeholder;
-            PacketByteBuf buf = PacketByteBufs.create();
-            byte[] bytes = new byte[bufferSize];
-            int read;
-
-            if (file != null)
-            {
-                RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-
-                randomAccessFile.seek(offset);
-                read = randomAccessFile.read(bytes);
-            }
-            else
-            {
-                InputStream stream = BBSMod.getDynamicSourcePack().getAsset(link);
-
-                stream.skip(offset);
-                read = stream.read(bytes);
-            }
-
-            buf.writeString(link.path);
-            buf.writeLong(offset + read);
-            buf.writeInt(read);
-            buf.writeBoolean(read != bytes.length);
-            buf.writeBytes(bytes, 0, read);
-
-            ServerPlayNetworking.send(player, CLIENT_ASSET, buf);
-        }
-        catch (IOException e)
-        {
-            System.err.println("Failed to read asset: " + link);
-        }
-    }
-
-    public static void sendRequestAsset(ServerPlayerEntity player, String asset, long offset)
-    {
-        PacketByteBuf buf = PacketByteBufs.create();
-
-        buf.writeString(asset);
-        buf.writeLong(offset);
-
-        ServerPlayNetworking.send(player, ServerNetwork.CLIENT_REQUEST_ASSET, buf);
     }
 
     public static void sendCheatsPermission(ServerPlayerEntity player, boolean cheats)
@@ -894,6 +731,7 @@ public class ServerNetwork
         ServerPlayNetworking.send(player, CLIENT_PAUSE_FILM, buf);
     }
 
+// <<<<<<< Updated upstream
     public static void sendStartItemUse(ServerPlayerEntity player, Hand hand, ItemStack stack, int recordedUseTime)
     {
         PacketByteBuf buf = PacketByteBufs.create();
@@ -903,5 +741,16 @@ public class ServerNetwork
         buf.writeVarInt(recordedUseTime);
 
         ServerPlayNetworking.send(player, CLIENT_START_ITEM_USE, buf);
+// =======
+//     public static void sendSelectedSlot(ServerPlayerEntity player, int slot)
+//     {
+//         player.getInventory().selectedSlot = slot;
+
+//         PacketByteBuf buf = PacketByteBufs.create();
+
+//         buf.writeInt(slot);
+
+//         ServerPlayNetworking.send(player, CLIENT_SELECTED_SLOT, buf);
+// >>>>>>> Stashed changes
     }
 }

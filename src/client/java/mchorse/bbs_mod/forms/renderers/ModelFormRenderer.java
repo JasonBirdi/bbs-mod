@@ -11,6 +11,7 @@ import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.Animator;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
 import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
@@ -23,9 +24,10 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
-import mchorse.bbs_mod.forms.properties.IFormProperty;
 import mchorse.bbs_mod.forms.triggers.StateTrigger;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
+import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -37,6 +39,7 @@ import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
@@ -45,6 +48,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.util.Hand;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -85,7 +89,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         for (String key : trigger.states.keys())
         {
-            IFormProperty property = FormUtils.getProperty(this.form, key);
+            BaseValueBasic property = FormUtils.getProperty(this.form, key);
 
             if (property != null)
             {
@@ -164,45 +168,40 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     public Pose getPose()
     {
         Pose pose = this.form.pose.get().copy();
-        
-        Pose[] overlays = {
-            this.form.poseOverlay.get(),
-            this.form.poseOverlay1.get(),
-            this.form.poseOverlay2.get(),
-            this.form.poseOverlay3.get(),
-            this.form.poseOverlay4.get(),
-            this.form.poseOverlay5.get(),
-            this.form.poseOverlay6.get(),
-            this.form.poseOverlay7.get()
-        };
+        Pose overlay = this.form.poseOverlay.get();
 
-        for (Pose overlay : overlays)
+        this.applyPose(pose, overlay);
+
+        for (ValuePose newPose : this.form.additionalOverlays)
         {
-            Pose overlayCopy = overlay.copy();
-            
-            for (Map.Entry<String, PoseTransform> entry : overlayCopy.transforms.entrySet())
-            {
-                PoseTransform poseTransform = pose.get(entry.getKey());
-                PoseTransform value = entry.getValue();
-
-                if (value.fix != 0)
-                {
-                    poseTransform.translate.lerp(value.translate, value.fix);
-                    poseTransform.scale.lerp(value.scale, value.fix);
-                    poseTransform.rotate.lerp(value.rotate, value.fix);
-                    poseTransform.rotate2.lerp(value.rotate2, value.fix);
-                }
-                else
-                {
-                    poseTransform.translate.add(value.translate);
-                    poseTransform.scale.add(value.scale).sub(1, 1, 1);
-                    poseTransform.rotate.add(value.rotate);
-                    poseTransform.rotate2.add(value.rotate2);
-                }
-            }
+            this.applyPose(pose, newPose.get());
         }
 
         return pose;
+    }
+
+    private void applyPose(Pose targetPose, Pose pose)
+    {
+        for (Map.Entry<String, PoseTransform> entry : pose.transforms.entrySet())
+        {
+            PoseTransform poseTransform = targetPose.get(entry.getKey());
+            PoseTransform value = entry.getValue();
+
+            if (value.fix != 0)
+            {
+                poseTransform.translate.lerp(value.translate, value.fix);
+                poseTransform.scale.lerp(value.scale, value.fix);
+                poseTransform.rotate.lerp(value.rotate, value.fix);
+                poseTransform.rotate2.lerp(value.rotate2, value.fix);
+            }
+            else
+            {
+                poseTransform.translate.add(value.translate);
+                poseTransform.scale.add(value.scale).sub(1, 1, 1);
+                poseTransform.rotate.add(value.rotate);
+                poseTransform.rotate2.add(value.rotate2);
+            }
+        }
     }
 
     public void resetAnimator()
@@ -432,6 +431,74 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 RenderSystem.enableDepthTest();
             }
         }
+    }
+
+    @Override
+    public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)
+    {
+        ModelInstance model = this.getModel();
+
+        if (this.animator != null && model != null)
+        {
+            ArmorSlot slot = hand == Hand.MAIN_HAND ? model.fpMain : model.fpOffhand;
+
+            if (slot == null)
+            {
+                return false;
+            }
+
+            Link link = this.form.texture.get();
+            Link texture = link == null ? model.texture : link;
+            Color color = this.form.color.get().copy();
+
+            for (ModelGroup group : model.getModel().getAllGroups())
+            {
+                ModelGroup g = group;
+                boolean visible = false;
+
+                while (g != null)
+                {
+                    if (g.id.equals(slot.group))
+                    {
+                        visible = true;
+
+                        break;
+                    }
+
+                    g = g.parent;
+                }
+
+                group.visible = visible;
+            }
+
+            model.model.resetPose();
+
+            matrices.push();
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
+            MatrixStackUtils.applyTransform(matrices, slot.transform);
+
+            BBSModClient.getTextures().bindTexture(texture);
+
+            Supplier<ShaderProgram> mainShader = (BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld()) || !model.isVAORendered()
+                ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
+                : BBSShaders::getModel;
+
+            RenderSystem.enableDepthTest();
+            RenderSystem.enableBlend();
+
+            this.renderModel(this.entity, mainShader, matrices, model, light, OverlayTexture.DEFAULT_UV, color, false, null, 0F);
+
+            for (ModelGroup group : model.getModel().getAllGroups())
+            {
+                group.visible = true;
+            }
+
+            matrices.pop();
+
+            return true;
+        }
+
+        return super.renderArm(matrices, light, player, hand);
     }
 
     @Override

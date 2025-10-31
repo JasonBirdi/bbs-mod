@@ -5,7 +5,7 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
@@ -17,8 +17,10 @@ import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Hand;
 import org.joml.Matrix4f;
 
 import java.util.Collections;
@@ -43,11 +45,6 @@ public abstract class FormRenderer <T extends Form>
     public List<String> getBones()
     {
         return Collections.emptyList();
-    }
-
-    protected Texture getTexture()
-    {
-        return null;
     }
 
     public final void renderUI(UIContext context, int x1, int y1, int x2, int y2)
@@ -80,6 +77,11 @@ public abstract class FormRenderer <T extends Form>
     }
 
     protected abstract void renderInUI(UIContext context, int x1, int y1, int x2, int y2);
+
+    public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)
+    {
+        return false;
+    }
 
     public final void render(FormRenderingContext context)
     {
@@ -135,32 +137,24 @@ public abstract class FormRenderer <T extends Form>
     protected Transform createTransform()
     {
         Transform transform = new Transform();
-        
-        Transform[] overlays = {
-            this.form.transformOverlay.get(),
-            this.form.transformOverlay1.get(),
-            this.form.transformOverlay2.get(),
-            this.form.transformOverlay3.get(),
-            this.form.transformOverlay4.get(),
-            this.form.transformOverlay5.get(),
-            this.form.transformOverlay6.get(),
-            this.form.transformOverlay7.get()
-        };
 
         transform.copy(this.form.transform.get());
-        
-        for (Transform overlay : overlays)
+        this.applyTransform(transform, this.form.transformOverlay.get());
+
+        for (ValueTransform t : this.form.additionalTransforms)
         {
-            if (overlay != null)
-            {
-                transform.translate.add(overlay.translate);
-                transform.scale.add(overlay.scale).sub(1, 1, 1);
-                transform.rotate.add(overlay.rotate);
-                transform.rotate2.add(overlay.rotate2);
-            }
+            this.applyTransform(transform, t.get());
         }
 
         return transform;
+    }
+
+    private void applyTransform(Transform transform, Transform overlay)
+    {
+        transform.translate.add(overlay.translate);
+        transform.scale.add(overlay.scale).sub(1, 1, 1);
+        transform.rotate.add(overlay.rotate);
+        transform.rotate2.add(overlay.rotate2);
     }
 
     protected Supplier<ShaderProgram> getShader(FormRenderingContext context, Supplier<ShaderProgram> normal, Supplier<ShaderProgram> picking)

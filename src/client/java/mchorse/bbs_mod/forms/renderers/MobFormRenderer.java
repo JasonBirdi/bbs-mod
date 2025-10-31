@@ -318,13 +318,6 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 
             currentPose = this.form.pose.get();
             currentPoseOverlays[0] = this.form.poseOverlay.get();
-            currentPoseOverlays[1] = this.form.poseOverlay1.get();
-            currentPoseOverlays[2] = this.form.poseOverlay2.get();
-            currentPoseOverlays[3] = this.form.poseOverlay3.get();
-            currentPoseOverlays[4] = this.form.poseOverlay4.get();
-            currentPoseOverlays[5] = this.form.poseOverlay5.get();
-            currentPoseOverlays[6] = this.form.poseOverlay6.get();
-            currentPoseOverlays[7] = this.form.poseOverlay7.get();
 
             MinecraftClient.getInstance().getEntityRenderDispatcher().render(this.entity, 0D, 0D, 0D, 0F, context.getTransition(), context.stack, consumers, light);
 

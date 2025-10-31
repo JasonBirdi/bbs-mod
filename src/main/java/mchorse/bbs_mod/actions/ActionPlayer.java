@@ -6,10 +6,17 @@ import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
+// <<<<<<< Updated upstream
 import mchorse.bbs_mod.mixin.ILivingEntityAccessor;
+// =======
+// import mchorse.bbs_mod.forms.forms.Form;
+// import mchorse.bbs_mod.morphing.Morph;
+// >>>>>>> Stashed changes
 import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.DataPath;
+import mchorse.bbs_mod.utils.MathUtils;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MovementType;
@@ -31,6 +38,8 @@ public class ActionPlayer
     public boolean playing = true;
     public int countdown;
     public int exception;
+    public PlayerType type;
+
     public boolean syncing;
     public boolean stopDamage = true;
 
@@ -49,21 +58,60 @@ public class ActionPlayer
     private boolean fpBowActive = false;
     private String fpBowReplayId = null;
 
-    public ActionPlayer(ServerPlayerEntity serverPlayer, ServerWorld world, Film film, int tick, int countdown, int exception)
+    private List<ItemStack> cachedInventory = new ArrayList<>();
+    private Form cachedForm;
+
+    private float cacheHp;
+    private float cacheHunger;
+    private int cacheXpLevel;
+    private float cacheXpProgress;
+
+    public ActionPlayer(ServerPlayerEntity serverPlayer, ServerWorld world, Film film, int tick, int countdown, int exception, PlayerType type)
     {
         this.world = world;
         this.film = film;
         this.tick = tick;
         this.countdown = countdown;
         this.exception = exception;
-        this.serverPlayer = serverPlayer;
+        this.type = type;
 
+        this.serverPlayer = serverPlayer;
         this.duration = film.camera.calculateDuration();
 
         // Backup the player's original inventory for first-person mode
         this.backupPlayerInventory();
 
         this.updateReplayEntities();
+
+        Replay fpReplay = film.getFirstPersonReplay();
+
+        if (this.type == PlayerType.NORMAL && this.serverPlayer != null && fpReplay != null)
+        {
+            for (int i = 0; i < this.serverPlayer.getInventory().size(); i++)
+            {
+                this.cachedInventory.add(serverPlayer.getInventory().getStack(i).copy());
+                this.serverPlayer.getInventory().setStack(i, CollectionUtils.getSafe(this.film.inventory.getStacks(), i, ItemStack.EMPTY));
+            }
+
+            Morph morph = Morph.getMorph(this.serverPlayer);
+
+            if (morph != null)
+            {
+                this.cachedForm = FormUtils.copy(morph.getForm());
+            }
+
+            ServerNetwork.sendMorphToTracked(this.serverPlayer, fpReplay.form.get());
+
+            this.cacheHp = this.serverPlayer.getHealth();
+            this.cacheHunger = this.serverPlayer.getHungerManager().getSaturationLevel();
+            this.cacheXpLevel = this.serverPlayer.experienceLevel;
+            this.cacheXpProgress = this.serverPlayer.experienceProgress;
+
+            this.serverPlayer.setHealth(this.film.hp.get());
+            this.serverPlayer.getHungerManager().setSaturationLevel(this.film.hunger.get());
+            this.serverPlayer.experienceProgress = this.film.xpProgress.get();
+            this.serverPlayer.setExperienceLevel(this.film.xpLevel.get());
+        }
     }
 
     public void updateReplayEntities()
@@ -83,21 +131,19 @@ public class ActionPlayer
         for (int i = 0; i < list.size(); i++)
         {
             Replay replay = list.get(i);
-            boolean isActor = !replay.actor.get();
+            boolean isActor = replay.actor.get() || replay.fp.get();
 
-            if (replay.fp.get())
-            {
-                isActor = false;
-            }
-
-            if (i == this.exception || isActor || !replay.enabled.get())
+            if (i == this.exception || !isActor || !replay.enabled.get())
             {
                 continue;
             }
 
             if (replay.fp.get() && this.serverPlayer != null)
             {
-                this.actors.put(replay.getId(), this.serverPlayer);
+                if (this.type == PlayerType.NORMAL)
+                {
+                    this.actors.put(replay.getId(), this.serverPlayer);
+                }
             }
             else
             {
@@ -145,39 +191,15 @@ public class ActionPlayer
         actor.setBodyYaw(yawBody);
         actor.setSneaking(replay.keyframes.sneaking.interpolate(tick) > 0);
         actor.setOnGround(replay.keyframes.grounded.interpolate(tick) > 0);
-        
-        // Only apply equipment changes to ActorEntity instances, not to real players
-        // This prevents inventory duplication issues in first person mode
-        if (!(actor instanceof ServerPlayerEntity))
-        {
-            actor.equipStack(EquipmentSlot.MAINHAND, replay.keyframes.mainHand.interpolate(tick, ItemStack.EMPTY));
-            actor.equipStack(EquipmentSlot.OFFHAND, replay.keyframes.offHand.interpolate(tick, ItemStack.EMPTY));
-            actor.equipStack(EquipmentSlot.HEAD, replay.keyframes.armorHead.interpolate(tick, ItemStack.EMPTY));
-            actor.equipStack(EquipmentSlot.CHEST, replay.keyframes.armorChest.interpolate(tick, ItemStack.EMPTY));
-            actor.equipStack(EquipmentSlot.LEGS, replay.keyframes.armorLegs.interpolate(tick, ItemStack.EMPTY));
-            actor.equipStack(EquipmentSlot.FEET, replay.keyframes.armorFeet.interpolate(tick, ItemStack.EMPTY));
+        actor.equipStack(EquipmentSlot.OFFHAND, replay.keyframes.offHand.interpolate(tick, ItemStack.EMPTY));
+        actor.equipStack(EquipmentSlot.HEAD, replay.keyframes.armorHead.interpolate(tick, ItemStack.EMPTY));
+        actor.equipStack(EquipmentSlot.CHEST, replay.keyframes.armorChest.interpolate(tick, ItemStack.EMPTY));
+        actor.equipStack(EquipmentSlot.LEGS, replay.keyframes.armorLegs.interpolate(tick, ItemStack.EMPTY));
+        actor.equipStack(EquipmentSlot.FEET, replay.keyframes.armorFeet.interpolate(tick, ItemStack.EMPTY));
 
-            // Provide recorded inventory to ActorEntity so it can drop it on death
-            if (actor instanceof mchorse.bbs_mod.entity.ActorEntity actorEntity)
-            {
-                java.util.List<ItemStack> recordedInventory = replay.keyframes.inventory.interpolate(tick);
-                if (recordedInventory != null && !recordedInventory.isEmpty())
-                {
-                    actorEntity.setRecordedInventory(recordedInventory);
-                }
-
-                // Set recorded XP so actor drops the same experience on death
-                Double xp = replay.keyframes.experience.interpolate(tick);
-                if (xp != null)
-                {
-                    actorEntity.setXpToDrop(xp.intValue());
-                }
-            }
-        }
-        
-        // Apply hotbar selection and inventory to real players (for first-person mode)
         if (actor instanceof ServerPlayerEntity player)
         {
+// <<<<<<< Updated upstream
             int recordedUseTime = replay.keyframes.itemUseTime.interpolate(tick).intValue();
             int prevRecordedUseTime = tick > 0
                 ? replay.keyframes.itemUseTime.interpolate(tick - 1).intValue()
@@ -317,6 +339,21 @@ public class ActionPlayer
                 }
                 this.keyframeBowActiveThisTick = false;
             }
+// =======
+//             int selectedSlot = player.getInventory().selectedSlot;
+//             int slot = MathUtils.clamp(replay.keyframes.selectedSlot.interpolate(this.tick), 0, 8);
+
+//             if (selectedSlot != slot)
+//             {
+//                 ServerNetwork.sendSelectedSlot(player, slot);
+//             }
+
+//             actor.equipStack(EquipmentSlot.MAINHAND, replay.keyframes.mainHand.interpolate(tick, ItemStack.EMPTY));
+//         }
+//         else
+//         {
+//             actor.equipStack(EquipmentSlot.MAINHAND, replay.keyframes.mainHand.interpolate(tick, ItemStack.EMPTY));
+// >>>>>>> Stashed changes
         }
 
         actor.fallDistance = replay.keyframes.fall.interpolate(tick).floatValue();
@@ -353,7 +390,7 @@ public class ActionPlayer
 
         this.tick += 1;
 
-        return !this.syncing ? this.tick >= this.duration : false;
+        return !this.syncing && this.tick >= this.duration;
     }
 
     private void applyAction()
@@ -454,6 +491,21 @@ public class ActionPlayer
             {
                 value.discard();
             }
+        }
+
+        if (this.type == PlayerType.NORMAL && this.serverPlayer != null && this.film.getFirstPersonReplay() != null)
+        {
+            for (int i = 0; i < this.serverPlayer.getInventory().size(); i++)
+            {
+                this.serverPlayer.getInventory().setStack(i, this.cachedInventory.get(i));
+            }
+
+            ServerNetwork.sendMorphToTracked(this.serverPlayer, this.cachedForm);
+
+            this.serverPlayer.setHealth(this.cacheHp);
+            this.serverPlayer.getHungerManager().setSaturationLevel(this.cacheHunger);
+            this.serverPlayer.experienceProgress = this.cacheXpProgress;
+            this.serverPlayer.setExperienceLevel(this.cacheXpLevel);
         }
     }
 
