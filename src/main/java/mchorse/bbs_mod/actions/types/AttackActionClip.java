@@ -28,6 +28,8 @@ public class AttackActionClip extends ActionClip
     public void applyAction(LivingEntity actor, SuperFakePlayer player, Film film, Replay replay, int tick)
     {
         float damage = this.damage.get();
+        
+        System.out.println("BBS MOD [ANIMATION PLAYBACK]: Applying attack at tick " + tick + " with " + damage + " damage");
 
         if (damage <= 0F)
         {

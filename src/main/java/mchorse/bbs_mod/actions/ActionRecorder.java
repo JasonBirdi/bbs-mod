@@ -73,6 +73,7 @@ public class ActionRecorder
 
         if (player.handSwingTicks == -1)
         {
+            System.out.println("BBS MOD [ANIMATION]: Hand swing detected at tick " + this.tick);
             this.add(new SwipeActionClip());
 
             if (BBSSettings.recordingSwipeDamage.get())
@@ -81,6 +82,7 @@ public class ActionRecorder
 
                 clip.damage.set(2F);
                 this.add(clip);
+                System.out.println("BBS MOD [ANIMATION]:  - Attack action added with 2.0 damage");
             }
         }
 

@@ -123,6 +123,12 @@ public class Recorder extends WorldFilmController
         if (this.hasNotStarted())
         {
             this.countdown -= 1;
+            
+            // Log when countdown finishes and actual recording begins
+            if (this.countdown == 0)
+            {
+                System.out.println("BBS MOD: Recording countdown finished - now recording frames!");
+            }
 
             return;
         }

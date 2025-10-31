@@ -6,6 +6,7 @@ import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.mixin.ILivingEntityAccessor;
 import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.DataPath;
@@ -15,6 +16,7 @@ import net.minecraft.entity.MovementType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
@@ -39,6 +41,13 @@ public class ActionPlayer
     private Map<String, LivingEntity> actors = new HashMap<>();
     private List<ItemStack> originalInventory = null;
     private int originalSelectedSlot = 0;
+    
+    // Tracks whether this tick's bow use came from keyframes (not actions)
+    private boolean keyframeBowActiveThisTick = false;
+    
+    // Tracks fp bow playback state for the real player
+    private boolean fpBowActive = false;
+    private String fpBowReplayId = null;
 
     public ActionPlayer(ServerPlayerEntity serverPlayer, ServerWorld world, Film film, int tick, int countdown, int exception)
     {
@@ -169,20 +178,144 @@ public class ActionPlayer
         // Apply hotbar selection and inventory to real players (for first-person mode)
         if (actor instanceof ServerPlayerEntity player)
         {
+            int recordedUseTime = replay.keyframes.itemUseTime.interpolate(tick).intValue();
+            int prevRecordedUseTime = tick > 0
+                ? replay.keyframes.itemUseTime.interpolate(tick - 1).intValue()
+                : 0;
+            
+            ItemStack recordedActiveItem = replay.keyframes.activeItemStack.interpolate(tick, ItemStack.EMPTY);
+            
+            // hotbar
             int selectedSlot = replay.keyframes.hotbarSelection.interpolate(tick).intValue();
             if (selectedSlot >= 0 && selectedSlot < 9)
             {
                 player.getInventory().selectedSlot = selectedSlot;
             }
             
-            // Apply the recorded inventory
-            List<ItemStack> recordedInventory = replay.keyframes.inventory.interpolate(tick);
-            if (recordedInventory != null && !recordedInventory.isEmpty())
+            // only push inventory when not using
+            if (recordedUseTime == 0)
             {
-                for (int i = 0; i < Math.min(recordedInventory.size(), player.getInventory().size()); i++)
+                List<ItemStack> recordedInventory = replay.keyframes.inventory.interpolate(tick);
+                if (recordedInventory != null && !recordedInventory.isEmpty())
                 {
-                    player.getInventory().setStack(i, recordedInventory.get(i).copy());
+                    for (int i = 0; i < Math.min(recordedInventory.size(), player.getInventory().size()); i++)
+                    {
+                        player.getInventory().setStack(i, recordedInventory.get(i).copy());
+                    }
                 }
+            }
+            
+            // pick hand
+            Hand hand = Hand.MAIN_HAND;
+            if (!recordedActiveItem.isEmpty() && !player.getMainHandStack().isOf(recordedActiveItem.getItem()))
+            {
+                hand = Hand.OFF_HAND;
+            }
+            
+            /* ------------ STATE MACHINE ------------ */
+            
+            // 1) START: 0 -> >0
+            if (prevRecordedUseTime == 0 && recordedUseTime > 0 && !recordedActiveItem.isEmpty())
+            {
+                // START ONLY IF we're not already in an fp bow for this replay
+                this.fpBowActive = true;
+                this.fpBowReplayId = replay.getId();
+                this.keyframeBowActiveThisTick = true;
+                
+                // server: ensure hand + active
+                player.setStackInHand(hand, recordedActiveItem.copy());
+                player.setCurrentHand(hand);
+                
+                ItemStack inHand = player.getStackInHand(hand);
+                int maxUse = inHand.getMaxUseTime();
+                int timeLeft = Math.max(maxUse - recordedUseTime, 1);
+                ((ILivingEntityAccessor) player).setItemUseTimeLeft(timeLeft);
+                
+                // CLIENT: send full start ONLY ONCE
+                ServerNetwork.sendStartItemUse(player, hand, inHand.copy(), recordedUseTime);
+                
+                System.out.println("BBS MOD [FP-BOW]: START once, used=" + recordedUseTime + " timeLeft=" + timeLeft);
+            }
+            // 2) HOLD: >0 -> >0
+            else if (recordedUseTime > 0)
+            {
+                // ONLY sync timer, DO NOT re-start, DO NOT send packets
+                if (this.fpBowActive && replay.getId().equals(this.fpBowReplayId))
+                {
+                    this.keyframeBowActiveThisTick = true;
+                    
+                    ItemStack inHand = !recordedActiveItem.isEmpty()
+                        ? recordedActiveItem
+                        : player.getStackInHand(hand);
+                    
+                    if (!inHand.isEmpty())
+                    {
+                        // Server: just sync timer server-side, NO PACKET during hold
+                        int maxUse = inHand.getMaxUseTime();
+                        int timeLeft = Math.max(maxUse - recordedUseTime, 1);
+                        ((ILivingEntityAccessor) player).setItemUseTimeLeft(timeLeft);
+                        
+                        // ❌ NO packet during HOLD - prevents spam
+                    }
+                }
+                else
+                {
+                    // we somehow missed the start — don't spam, just log once
+                    if (!this.fpBowActive)
+                    {
+                        System.out.println("BBS MOD [FP-BOW][WARN]: hold without start, tick=" + tick);
+                    }
+                }
+            }
+            // 3) RELEASE: >0 -> 0
+            else if (prevRecordedUseTime > 0 && recordedUseTime == 0)
+            {
+                ItemStack stackToRelease = tick > 0
+                    ? replay.keyframes.activeItemStack.interpolate(tick - 1, ItemStack.EMPTY)
+                    : ItemStack.EMPTY;
+                
+                if (stackToRelease.isEmpty())
+                {
+                    stackToRelease = player.getMainHandStack();
+                }
+                
+                if (!stackToRelease.isEmpty())
+                {
+                    if (stackToRelease.getItem() instanceof net.minecraft.item.BowItem bowItem)
+                    {
+                        int maxUse = stackToRelease.getMaxUseTime();
+                        int remaining = Math.max(maxUse - prevRecordedUseTime, 0);
+                        bowItem.onStoppedUsing(stackToRelease, player.getWorld(), player, remaining);
+                        System.out.println("BBS MOD [FP-BOW]: RELEASE used=" + prevRecordedUseTime + " remaining=" + remaining);
+                    }
+                    else if (stackToRelease.getItem() instanceof net.minecraft.item.CrossbowItem crossbowItem)
+                    {
+                        int maxUse = stackToRelease.getMaxUseTime();
+                        int remaining = Math.max(maxUse - prevRecordedUseTime, 0);
+                        crossbowItem.onStoppedUsing(stackToRelease, player.getWorld(), player, remaining);
+                    }
+                }
+                
+                player.clearActiveItem();
+                
+                // reset fp state
+                this.fpBowActive = false;
+                this.fpBowReplayId = null;
+                this.keyframeBowActiveThisTick = false;
+            }
+            else
+            {
+                // recording says "not using"; make sure state is off
+                if (this.fpBowActive && recordedUseTime == 0)
+                {
+                    this.fpBowActive = false;
+                    this.fpBowReplayId = null;
+                }
+                if (player.isUsingItem() && recordedUseTime == 0)
+                {
+                    player.clearActiveItem();
+                }
+                this.keyframeBowActiveThisTick = false;
             }
         }
 
@@ -230,11 +363,6 @@ public class ActionPlayer
 
         for (int i = 0; i < list.size(); i++)
         {
-            if (i == this.exception)
-            {
-                continue;
-            }
-
             Replay replay = list.get(i);
 
             if (!replay.enabled.get())
@@ -242,8 +370,30 @@ public class ActionPlayer
                 continue;
             }
 
+            // For first-person mode, we need to apply actions to the real player
+            // For non-first-person mode, skip if this is the exception (recording player)
+            if (i == this.exception && !replay.fp.get())
+            {
+                continue;
+            }
+
             LivingEntity actor = this.actors.get(replay.getId());
 
+            // Log when actions are about to be applied (only if there are actions at this tick)
+            if (!replay.actions.getClips(this.tick).isEmpty())
+            {
+                System.out.println("BBS MOD [ANIMATION PLAYBACK]: Applying " + replay.actions.getClips(this.tick).size() + 
+                                   " action(s) at tick " + this.tick + " for replay: " + replay.getId() +
+                                   " | Actor: " + (actor != null ? actor.getClass().getSimpleName() : "NULL"));
+            }
+            
+            // If first-person actor is a real player AND fp bow is active,
+            // absolutely no actions while fp bow is playing
+            if (actor instanceof ServerPlayerEntity && this.fpBowActive)
+            {
+                continue;
+            }
+            
             replay.applyActions(actor, fakePlayer, this.film, this.tick);
         }
     }

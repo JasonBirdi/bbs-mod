@@ -104,6 +104,7 @@ public class ClientNetwork
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_ACTORS, (client, handler, buf, responseSender) -> handleActorsPacket(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_GUN_PROPERTIES, (client, handler, buf, responseSender) -> handleGunPropertiesPacket(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_PAUSE_FILM, (client, handler, buf, responseSender) -> handlePauseFilmPacket(client, buf));
+        ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_START_ITEM_USE, (client, handler, buf, responseSender) -> handleStartItemUsePacket(client, buf));
     }
 
     /* Handlers */
@@ -433,6 +434,48 @@ public class ClientNetwork
         client.execute(() ->
         {
             Films.togglePauseFilm(filmId);
+        });
+    }
+
+    private static void handleStartItemUsePacket(MinecraftClient client, PacketByteBuf buf)
+    {
+        net.minecraft.util.Hand hand = buf.readEnumConstant(net.minecraft.util.Hand.class);
+        net.minecraft.item.ItemStack stack = buf.readItemStack();
+        int recordedUseTime = buf.readVarInt();
+
+        client.execute(() ->
+        {
+            net.minecraft.client.network.ClientPlayerEntity player = client.player;
+            if (player == null) return;
+
+            net.minecraft.item.ItemStack current = player.getStackInHand(hand);
+            
+            // Check if we're already using the same item
+            boolean sameItem = !current.isEmpty() 
+                && net.minecraft.item.ItemStack.areItemsEqual(current, stack);
+
+            if (player.isUsingItem() && sameItem)
+            {
+                // Already using THIS bow → just sync timer, DON'T restart animation
+                int maxUse = stack.getMaxUseTime();
+                int timeLeft = Math.max(maxUse - recordedUseTime, 1);
+                ((mchorse.bbs_mod.mixin.ILivingEntityAccessor) player).setItemUseTimeLeft(timeLeft);
+                return; // ← IMPORTANT: do NOT restart animation
+            }
+
+            // Otherwise, real start
+            player.setStackInHand(hand, stack);
+            player.setCurrentHand(hand);
+            
+            // Fast-forward locally using the accessor mixin
+            int maxUse = stack.getMaxUseTime();
+            int timeLeft = Math.max(maxUse - recordedUseTime, 1);
+            ((mchorse.bbs_mod.mixin.ILivingEntityAccessor) player).setItemUseTimeLeft(timeLeft);
+            
+            // Force hand to re-render
+            client.gameRenderer.firstPersonRenderer.resetEquipProgress(hand);
+            
+            System.out.println("BBS MOD [ANIMATION PLAYBACK]: Client-side item use animation triggered");
         });
     }
 

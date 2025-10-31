@@ -45,6 +45,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -82,6 +83,7 @@ public class ServerNetwork
     public static final Identifier CLIENT_ACTORS = new Identifier(BBSMod.MOD_ID, "c14");
     public static final Identifier CLIENT_GUN_PROPERTIES = new Identifier(BBSMod.MOD_ID, "c15");
     public static final Identifier CLIENT_PAUSE_FILM = new Identifier(BBSMod.MOD_ID, "c16");
+    public static final Identifier CLIENT_START_ITEM_USE = new Identifier(BBSMod.MOD_ID, "c17");
 
     public static final Identifier SERVER_MODEL_BLOCK_FORM_PACKET = new Identifier(BBSMod.MOD_ID, "s1");
     public static final Identifier SERVER_MODEL_BLOCK_TRANSFORMS_PACKET = new Identifier(BBSMod.MOD_ID, "s2");
@@ -890,5 +892,16 @@ public class ServerNetwork
         buf.writeString(filmId);
 
         ServerPlayNetworking.send(player, CLIENT_PAUSE_FILM, buf);
+    }
+
+    public static void sendStartItemUse(ServerPlayerEntity player, Hand hand, ItemStack stack, int recordedUseTime)
+    {
+        PacketByteBuf buf = PacketByteBufs.create();
+
+        buf.writeEnumConstant(hand);
+        buf.writeItemStack(stack);
+        buf.writeVarInt(recordedUseTime);
+
+        ServerPlayNetworking.send(player, CLIENT_START_ITEM_USE, buf);
     }
 }

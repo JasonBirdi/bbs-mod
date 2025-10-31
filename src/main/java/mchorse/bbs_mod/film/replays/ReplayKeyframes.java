@@ -70,6 +70,10 @@ public class ReplayKeyframes extends ValueGroup
     public final KeyframeChannel<Double> hotbarSelection = new KeyframeChannel<>("hotbar_selection", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<List<ItemStack>> inventory = new KeyframeChannel<>("inventory", KeyframeFactories.INVENTORY);
     public final KeyframeChannel<Double> experience = new KeyframeChannel<>("experience", KeyframeFactories.DOUBLE);
+    
+    /* Active item state for animations like bow drawing */
+    public final KeyframeChannel<ItemStack> activeItemStack = new KeyframeChannel<>("active_item_stack", KeyframeFactories.ITEM_STACK);
+    public final KeyframeChannel<Double> itemUseTime = new KeyframeChannel<>("item_use_time", KeyframeFactories.DOUBLE);
 
     public ReplayKeyframes(String id)
     {
@@ -110,6 +114,8 @@ public class ReplayKeyframes extends ValueGroup
         this.add(this.hotbarSelection);
         this.add(this.inventory);
         this.add(this.experience);
+        this.add(this.activeItemStack);
+        this.add(this.itemUseTime);
     }
 
     public List<KeyframeChannel<?>> getChannels()
@@ -223,12 +229,23 @@ public class ReplayKeyframes extends ValueGroup
 
         if (empty)
         {
-            this.mainHand.insert(tick, entity.getEquipmentStack(EquipmentSlot.MAINHAND).copy());
-            this.offHand.insert(tick, entity.getEquipmentStack(EquipmentSlot.OFFHAND).copy());
+            ItemStack mainHandStack = entity.getEquipmentStack(EquipmentSlot.MAINHAND).copy();
+            ItemStack offHandStack = entity.getEquipmentStack(EquipmentSlot.OFFHAND).copy();
+            
+            this.mainHand.insert(tick, mainHandStack);
+            this.offHand.insert(tick, offHandStack);
             this.armorHead.insert(tick, entity.getEquipmentStack(EquipmentSlot.HEAD).copy());
             this.armorChest.insert(tick, entity.getEquipmentStack(EquipmentSlot.CHEST).copy());
             this.armorLegs.insert(tick, entity.getEquipmentStack(EquipmentSlot.LEGS).copy());
             this.armorFeet.insert(tick, entity.getEquipmentStack(EquipmentSlot.FEET).copy());
+            
+            // Log equipment at key intervals or when items change
+            if (tick % 20 == 0 && (!mainHandStack.isEmpty() || !offHandStack.isEmpty()))
+            {
+                System.out.println("BBS MOD [RECORDING]: Tick " + tick + " equipment - Main: " + 
+                                   mainHandStack.getItem().getName().getString() + ", Off: " + 
+                                   offHandStack.getItem().getName().getString());
+            }
             
             // Record hotbar selection, inventory, and experience for player entities
             if (entity instanceof mchorse.bbs_mod.forms.entities.MCEntity mcEntity)
@@ -248,6 +265,13 @@ public class ReplayKeyframes extends ValueGroup
 
                     // Total experience (sum of all levels and progress)
                     this.experience.insert(tick, (double) player.totalExperience);
+                    
+                    // Record active item state for bow drawing and similar animations
+                    if (mcEntityInstance instanceof net.minecraft.entity.LivingEntity livingEntity)
+                    {
+                        this.activeItemStack.insert(tick, livingEntity.getActiveItem().copy());
+                        this.itemUseTime.insert(tick, (double) livingEntity.getItemUseTime());
+                    }
                 }
             }
         }
