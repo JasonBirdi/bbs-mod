@@ -15,18 +15,22 @@ import org.joml.Matrix4f;
 public class Gizmo3D
 {
     private static final float AXIS_LENGTH = 1.0F;
-    private static final float AXIS_THICKNESS = 0.006F;
+    private static final float AXIS_THICKNESS = 0.004F;
     private static final float ARROW_LENGTH = 0.12F;
-    private static final float ARROW_WIDTH = 0.03F;
-    private static final float RING_RADIUS = 0.4F;
-    private static final float RING_THICKNESS = 0.006F;
-    private static final float ORIGIN_SIZE = 0.025F;
+    private static final float ARROW_WIDTH = 0.025F;
+    private static final float RING_RADIUS_BLUE = 0.32F;
+    private static final float RING_RADIUS_RED = 0.36F;
+    private static final float RING_RADIUS_GREEN = 0.4F;
+    private static final float RING_THICKNESS = 0.004F;
+    private static final float ORIGIN_SIZE = 0.022F;
+    private static final float ORIGIN_OUTLINE = 0.002F;
     private static final float NEG_AXIS_LENGTH = 0.3F;
     private static final float NEG_AXIS_THICKNESS = 0.004F;
+    private static final float HANDLE_SIZE = 0.05F;
+    private static final float HANDLE_POSITION = 0.15F;
+    private static final int CONE_SEGMENTS = 16;
 
     private static final int RING_SEGMENTS = 64;
-    private static final int SPHERE_RINGS = 10;
-    private static final int SPHERE_SEGMENTS = 12;
 
     public enum Axis
     {
@@ -56,7 +60,16 @@ public class Gizmo3D
         renderRotationRing(stack, Axis.Y, scale, alpha);
         renderRotationRing(stack, Axis.Z, scale, alpha);
 
-        renderOriginSphere(stack, scale, alpha);
+        builder = Tessellator.getInstance().getBuffer();
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+
+        renderCubeHandle(builder, stack, Axis.X, scale, alpha);
+        renderCubeHandle(builder, stack, Axis.Y, scale, alpha);
+        renderConeHandle(builder, stack, Axis.Z, scale, alpha);
+
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+
+        renderOriginSquare(stack, scale, alpha);
 
         RenderSystem.enableCull();
         RenderSystem.enableDepthTest();
@@ -89,6 +102,86 @@ public class Gizmo3D
         renderNegativeAxis(builder, stack, negLen, negThick, r, g, b, alpha * 0.4F);
         renderAxisShaft(builder, stack, axisLen - arrowLen, thickness, r, g, b, alpha);
         renderArrowhead(builder, stack, axisLen - arrowLen, axisLen, arrowWidth, r, g, b, alpha);
+
+        stack.pop();
+    }
+
+    private static void renderCubeHandle(BufferBuilder builder, MatrixStack stack, Axis axis, float scale, float alpha)
+    {
+        float[] color = getAxisColor(axis);
+        float r = color[0];
+        float g = color[1];
+        float b = color[2];
+        float size = HANDLE_SIZE * scale;
+        float pos = HANDLE_POSITION * scale;
+
+        stack.push();
+
+        switch (axis)
+        {
+            case X -> stack.translate(pos, 0, 0);
+            case Y -> {
+                stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
+                stack.translate(pos, 0, 0);
+            }
+            case Z -> {
+                stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
+                stack.translate(pos, 0, 0);
+            }
+        }
+
+        float half = size / 2F;
+        Draw.fillBox(builder, stack, -half, -half, -half, half, half, half, r, g, b, alpha);
+
+        stack.pop();
+    }
+
+    private static void renderConeHandle(BufferBuilder builder, MatrixStack stack, Axis axis, float scale, float alpha)
+    {
+        float[] color = getAxisColor(axis);
+        float r = color[0];
+        float g = color[1];
+        float b = color[2];
+        float size = HANDLE_SIZE * scale;
+        float pos = HANDLE_POSITION * scale;
+
+        stack.push();
+
+        switch (axis)
+        {
+            case X -> stack.translate(pos, 0, 0);
+            case Y -> {
+                stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
+                stack.translate(pos, 0, 0);
+            }
+            case Z -> {
+                stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
+                stack.translate(pos, 0, 0);
+            }
+        }
+
+        Matrix4f m = stack.peek().getPositionMatrix();
+        float radius = size / 2F;
+        float height = size;
+
+        for (int i = 0; i < CONE_SEGMENTS; i++)
+        {
+            float t0 = (float) (2 * Math.PI * i / CONE_SEGMENTS);
+            float t1 = (float) (2 * Math.PI * (i + 1) / CONE_SEGMENTS);
+
+            float y0 = (float) Math.cos(t0) * radius;
+            float z0 = (float) Math.sin(t0) * radius;
+            float y1 = (float) Math.cos(t1) * radius;
+            float z1 = (float) Math.sin(t1) * radius;
+
+            builder.vertex(m, height, 0, 0).color(r, g, b, alpha).next();
+            builder.vertex(m, 0, y0, z0).color(r, g, b, alpha).next();
+            builder.vertex(m, 0, y1, z1).color(r, g, b, alpha).next();
+
+            builder.vertex(m, 0, y0, z0).color(r, g, b, alpha).next();
+            builder.vertex(m, 0, y1, z1).color(r, g, b, alpha).next();
+            builder.vertex(m, 0, 0, 0).color(r, g, b, alpha).next();
+        }
 
         stack.pop();
     }
@@ -128,7 +221,12 @@ public class Gizmo3D
     private static void renderRotationRing(MatrixStack stack, Axis axis, float scale, float alpha)
     {
         float[] color = getAxisColor(axis);
-        float radius = RING_RADIUS * scale;
+        float radius = switch (axis)
+        {
+            case X -> RING_RADIUS_RED * scale;
+            case Y -> RING_RADIUS_GREEN * scale;
+            case Z -> RING_RADIUS_BLUE * scale;
+        };
         float thickness = RING_THICKNESS * scale;
 
         stack.push();
@@ -191,56 +289,69 @@ public class Gizmo3D
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
-    private static void renderOriginSphere(MatrixStack stack, float scale, float alpha)
+    private static void renderOriginSquare(MatrixStack stack, float scale, float alpha)
     {
-        float radius = ORIGIN_SIZE * scale;
+        float size = ORIGIN_SIZE * scale;
+        float outline = ORIGIN_OUTLINE * scale;
+        float half = size / 2F;
 
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
+        stack.push();
+        stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90F));
+
         Matrix4f m = stack.peek().getPositionMatrix();
 
-        for (int i = 0; i < SPHERE_RINGS; i++)
-        {
-            float v0 = (float) i / SPHERE_RINGS;
-            float v1 = (float) (i + 1) / SPHERE_RINGS;
+        float inner = half - outline;
+        float outer = half + outline;
 
-            float theta0 = (float) Math.PI * v0 - (float) Math.PI / 2F;
-            float theta1 = (float) Math.PI * v1 - (float) Math.PI / 2F;
+        builder.vertex(m, inner, inner, 0).color(1F, 1F, 1F, alpha).next();
+        builder.vertex(m, inner, -inner, 0).color(1F, 1F, 1F, alpha).next();
+        builder.vertex(m, -inner, -inner, 0).color(1F, 1F, 1F, alpha).next();
 
-            float y0 = (float) Math.sin(theta0) * radius;
-            float y1 = (float) Math.sin(theta1) * radius;
-            float r0 = (float) Math.cos(theta0) * radius;
-            float r1 = (float) Math.cos(theta1) * radius;
+        builder.vertex(m, inner, inner, 0).color(1F, 1F, 1F, alpha).next();
+        builder.vertex(m, -inner, -inner, 0).color(1F, 1F, 1F, alpha).next();
+        builder.vertex(m, -inner, inner, 0).color(1F, 1F, 1F, alpha).next();
 
-            for (int j = 0; j < SPHERE_SEGMENTS; j++)
-            {
-                float u0 = (float) j / SPHERE_SEGMENTS;
-                float u1 = (float) (j + 1) / SPHERE_SEGMENTS;
+        float purpleR = 0.5F;
+        float purpleG = 0.0F;
+        float purpleB = 0.5F;
 
-                float phi0 = (float) (2 * Math.PI) * u0;
-                float phi1 = (float) (2 * Math.PI) * u1;
+        builder.vertex(m, outer, outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, outer, inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
 
-                float x00 = (float) Math.cos(phi0) * r0;
-                float z00 = (float) Math.sin(phi0) * r0;
-                float x01 = (float) Math.cos(phi1) * r0;
-                float z01 = (float) Math.sin(phi1) * r0;
+        builder.vertex(m, outer, outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
 
-                float x10 = (float) Math.cos(phi0) * r1;
-                float z10 = (float) Math.sin(phi0) * r1;
-                float x11 = (float) Math.cos(phi1) * r1;
-                float z11 = (float) Math.sin(phi1) * r1;
+        builder.vertex(m, outer, -inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, outer, -outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, -outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
 
-                builder.vertex(m, x00, y0, z00).color(1F, 1F, 1F, alpha).next();
-                builder.vertex(m, x10, y1, z10).color(1F, 1F, 1F, alpha).next();
-                builder.vertex(m, x11, y1, z11).color(1F, 1F, 1F, alpha).next();
+        builder.vertex(m, outer, -inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, -outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, -inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
 
-                builder.vertex(m, x00, y0, z00).color(1F, 1F, 1F, alpha).next();
-                builder.vertex(m, x11, y1, z11).color(1F, 1F, 1F, alpha).next();
-                builder.vertex(m, x01, y0, z01).color(1F, 1F, 1F, alpha).next();
-            }
-        }
+        builder.vertex(m, -inner, outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+
+        builder.vertex(m, -inner, outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, -inner, inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+
+        builder.vertex(m, -inner, -inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, -inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, -outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+
+        builder.vertex(m, -inner, -inner, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, inner, -outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+        builder.vertex(m, -inner, -outer, 0).color(purpleR, purpleG, purpleB, alpha).next();
+
+        stack.pop();
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
@@ -262,7 +373,22 @@ public class Gizmo3D
 
     public static float getRingRadius(float scale)
     {
-        return RING_RADIUS * scale * BBSSettings.axesScale.get();
+        return RING_RADIUS_GREEN * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getRingRadiusBlue(float scale)
+    {
+        return RING_RADIUS_BLUE * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getRingRadiusRed(float scale)
+    {
+        return RING_RADIUS_RED * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getRingRadiusGreen(float scale)
+    {
+        return RING_RADIUS_GREEN * scale * BBSSettings.axesScale.get();
     }
 
     public static float getRingThickness(float scale)
@@ -273,6 +399,26 @@ public class Gizmo3D
     public static float getAxisThickness(float scale)
     {
         return AXIS_THICKNESS * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getHandleSize(float scale)
+    {
+        return HANDLE_SIZE * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getHandlePosition(float scale)
+    {
+        return HANDLE_POSITION * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getOriginSize(float scale)
+    {
+        return ORIGIN_SIZE * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getOriginOutline(float scale)
+    {
+        return ORIGIN_OUTLINE * scale * BBSSettings.axesScale.get();
     }
 }
 

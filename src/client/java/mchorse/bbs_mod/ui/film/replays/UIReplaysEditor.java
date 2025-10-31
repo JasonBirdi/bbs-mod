@@ -976,7 +976,7 @@ public class UIReplaysEditor extends UIElement
         }
 
         // Scale tolerance with on-screen radius to keep selection easy at any zoom
-        float R = Gizmo3D.getRingRadius(1F);
+        float R = Gizmo3D.getRingRadiusGreen(1F);
         float tube = Gizmo3D.getRingThickness(1F) * 2F;
         Vector2f pR = projectToScreen(mvp, area, R, 0, 0);
         Vector2f pRt = projectToScreen(mvp, area, R + tube * 0.9F, 0, 0);
@@ -989,6 +989,69 @@ public class UIReplaysEditor extends UIElement
         }
 
         Vector2f mouse = new Vector2f(context.mouseX, context.mouseY);
+
+        // Check origin square first (uniform scale)
+        float originSize = Gizmo3D.getOriginSize(1F) * 1.5F;
+        Vector2f originP1 = projectToScreen(mvp, area, -originSize, -originSize, 0);
+        Vector2f originP2 = projectToScreen(mvp, area, originSize, originSize, 0);
+        if (originP1 != null && originP2 != null)
+        {
+            float originDist = Math.max(Math.abs(mouse.x - (originP1.x + originP2.x) / 2F), Math.abs(mouse.y - (originP1.y + originP2.y) / 2F));
+            float originHalfSize = Math.max(Math.abs(originP2.x - originP1.x), Math.abs(originP2.y - originP1.y)) / 2F;
+            if (originDist <= originHalfSize + 10F)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.X);
+                return true;
+            }
+        }
+
+        // Check cube/cone handles (axis-specific scale)
+        float handlePos = Gizmo3D.getHandlePosition(1F);
+        float handlePickTol = 25F;
+
+        // X cube handle
+        Vector2f cubeX = projectToScreen(mvp, area, handlePos, 0, 0);
+        if (cubeX != null)
+        {
+            float dist = mouse.distance(cubeX);
+            if (dist <= handlePickTol)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.X);
+                return true;
+            }
+        }
+
+        // Y cube handle
+        Vector2f cubeY = projectToScreen(mvp, area, 0, handlePos, 0);
+        if (cubeY != null)
+        {
+            float dist = mouse.distance(cubeY);
+            if (dist <= handlePickTol)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.Y);
+                return true;
+            }
+        }
+
+        // Z cone handle
+        Vector2f coneZ = projectToScreen(mvp, area, 0, 0, handlePos);
+        if (coneZ != null)
+        {
+            float dist = mouse.distance(coneZ);
+            if (dist <= handlePickTol)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.Z);
+                return true;
+            }
+        }
 
         // Ring picking via screen-space sampling
         Axis ringHit = null;
@@ -1008,18 +1071,26 @@ public class UIReplaysEditor extends UIElement
         };
 
         final float[] bestRef = new float[] { Float.MAX_VALUE };
-        final float finalR = R; // capture scaled R for lambda
+        final float finalRZ = Gizmo3D.getRingRadiusBlue(1F);
+        final float finalRX = Gizmo3D.getRingRadiusRed(1F);
+        final float finalRY = Gizmo3D.getRingRadiusGreen(1F);
         java.util.function.BiFunction<Axis, Integer, Float> test = (axis, dummy) ->
         {
             float ringLocal = Float.MAX_VALUE;
             Vector2f prev = null;
+            float ringRadius = switch (axis)
+            {
+                case X -> finalRX;
+                case Y -> finalRY;
+                case Z -> finalRZ;
+            };
             for (int i = 0; i <= samples; i++)
             {
                 float t = (float) (2 * Math.PI * i / samples);
                 Vector4f v;
-                if (axis == Axis.Z) v = new Vector4f((float) Math.cos(t) * finalR, (float) Math.sin(t) * finalR, 0, 1);
-                else if (axis == Axis.Y) v = new Vector4f((float) Math.cos(t) * finalR, 0, (float) Math.sin(t) * finalR, 1);
-                else v = new Vector4f(0, (float) Math.cos(t) * finalR, (float) Math.sin(t) * finalR, 1);
+                if (axis == Axis.Z) v = new Vector4f((float) Math.cos(t) * ringRadius, (float) Math.sin(t) * ringRadius, 0, 1);
+                else if (axis == Axis.Y) v = new Vector4f((float) Math.cos(t) * ringRadius, 0, (float) Math.sin(t) * ringRadius, 1);
+                else v = new Vector4f(0, (float) Math.cos(t) * ringRadius, (float) Math.sin(t) * ringRadius, 1);
                 int seg = (int) Math.floor((float) i / samples * period) % period;
                 if (seg >= onCount) { prev = null; continue; }
                 Vector2f cur = project.apply(v);
