@@ -525,7 +525,7 @@ public abstract class BaseFilmController
                             player.fallDistance = replay.keyframes.fall.interpolate(ticks).floatValue();
                             
                             // Apply the recorded hotbar selection during first person playback
-                            int selectedSlot = replay.keyframes.selectedSlot.interpolate(ticks);
+                            int selectedSlot = replay.keyframes.hotbarSelection.interpolate(ticks).intValue();
                             if (selectedSlot >= 0 && selectedSlot < 9)
                             {
                                 player.getInventory().selectedSlot = selectedSlot;

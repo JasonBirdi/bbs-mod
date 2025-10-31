@@ -6,11 +6,10 @@ import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
-// <<<<<<< Updated upstream
 import mchorse.bbs_mod.mixin.ILivingEntityAccessor;
 // =======
-// import mchorse.bbs_mod.forms.forms.Form;
-// import mchorse.bbs_mod.morphing.Morph;
+import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.morphing.Morph;
 // >>>>>>> Stashed changes
 import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
