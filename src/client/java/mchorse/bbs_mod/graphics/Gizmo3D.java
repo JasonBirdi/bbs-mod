@@ -28,7 +28,6 @@ public class Gizmo3D
     private static final float NEG_AXIS_THICKNESS = 0.004F;
     private static final float HANDLE_SIZE = 0.05F;
     private static final float HANDLE_POSITION = 0.15F;
-    private static final int CONE_SEGMENTS = 16;
 
     private static final int RING_SEGMENTS = 64;
 
@@ -65,7 +64,7 @@ public class Gizmo3D
 
         renderCubeHandle(builder, stack, Axis.X, scale, alpha);
         renderCubeHandle(builder, stack, Axis.Y, scale, alpha);
-        renderConeHandle(builder, stack, Axis.Z, scale, alpha);
+        renderCubeHandle(builder, stack, Axis.Z, scale, alpha);
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
@@ -132,56 +131,6 @@ public class Gizmo3D
 
         float half = size / 2F;
         Draw.fillBox(builder, stack, -half, -half, -half, half, half, half, r, g, b, alpha);
-
-        stack.pop();
-    }
-
-    private static void renderConeHandle(BufferBuilder builder, MatrixStack stack, Axis axis, float scale, float alpha)
-    {
-        float[] color = getAxisColor(axis);
-        float r = color[0];
-        float g = color[1];
-        float b = color[2];
-        float size = HANDLE_SIZE * scale;
-        float pos = HANDLE_POSITION * scale;
-
-        stack.push();
-
-        switch (axis)
-        {
-            case X -> stack.translate(pos, 0, 0);
-            case Y -> {
-                stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
-                stack.translate(pos, 0, 0);
-            }
-            case Z -> {
-                stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
-                stack.translate(pos, 0, 0);
-            }
-        }
-
-        Matrix4f m = stack.peek().getPositionMatrix();
-        float radius = size / 2F;
-        float height = size;
-
-        for (int i = 0; i < CONE_SEGMENTS; i++)
-        {
-            float t0 = (float) (2 * Math.PI * i / CONE_SEGMENTS);
-            float t1 = (float) (2 * Math.PI * (i + 1) / CONE_SEGMENTS);
-
-            float y0 = (float) Math.cos(t0) * radius;
-            float z0 = (float) Math.sin(t0) * radius;
-            float y1 = (float) Math.cos(t1) * radius;
-            float z1 = (float) Math.sin(t1) * radius;
-
-            builder.vertex(m, height, 0, 0).color(r, g, b, alpha).next();
-            builder.vertex(m, 0, y0, z0).color(r, g, b, alpha).next();
-            builder.vertex(m, 0, y1, z1).color(r, g, b, alpha).next();
-
-            builder.vertex(m, 0, y0, z0).color(r, g, b, alpha).next();
-            builder.vertex(m, 0, y1, z1).color(r, g, b, alpha).next();
-            builder.vertex(m, 0, 0, 0).color(r, g, b, alpha).next();
-        }
 
         stack.pop();
     }

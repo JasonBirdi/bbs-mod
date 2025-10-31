@@ -193,7 +193,7 @@ public class UIPickableFormRenderer extends UIFormRenderer
         final int ARROW_Z_ID = 2003; // Z arrow (translation)
         final int CUBE_X_ID = 3001; // Red cube handle (X scale)
         final int CUBE_Y_ID = 3002; // Green cube handle (Y scale)
-        final int CONE_Z_ID = 3003; // Blue cone handle (Z scale)
+        final int CONE_Z_ID = 3003; // Blue cube handle (Z scale)
 
         // Set up picking shader
         ShaderProgram pickingProgram = BBSShaders.getPickerModelsProgram();
@@ -250,7 +250,7 @@ public class UIPickableFormRenderer extends UIFormRenderer
         this.stencilMap.objectIndex = CONE_Z_ID;
         stack.push();
         stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
-        this.renderConeHandleForPicking(builder, stack, handleSize, handlePos);
+        this.renderCubeHandleForPicking(builder, stack, handleSize, handlePos, 0, 0, 0);
         stack.pop();
 
         float originSize = Gizmo3D.getOriginSize(scale) * 1.3F;
@@ -338,38 +338,6 @@ public class UIPickableFormRenderer extends UIFormRenderer
         float half = size / 2F;
         
         Draw.fillBox(builder, stack, -half, -half, -half, half, half, half, 1F, 1F, 1F, 1F);
-        
-        stack.pop();
-    }
-
-    private void renderConeHandleForPicking(BufferBuilder builder, MatrixStack stack, float size, float position)
-    {
-        stack.push();
-        stack.translate(position, 0, 0);
-        
-        Matrix4f m = stack.peek().getPositionMatrix();
-        float radius = size / 2F;
-        float height = size;
-        int segments = 16;
-        
-        for (int i = 0; i < segments; i++)
-        {
-            float t0 = (float) (2 * Math.PI * i / segments);
-            float t1 = (float) (2 * Math.PI * (i + 1) / segments);
-            
-            float y0 = (float) Math.cos(t0) * radius;
-            float z0 = (float) Math.sin(t0) * radius;
-            float y1 = (float) Math.cos(t1) * radius;
-            float z1 = (float) Math.sin(t1) * radius;
-            
-            builder.vertex(m, height, 0, 0).next();
-            builder.vertex(m, 0, y0, z0).next();
-            builder.vertex(m, 0, y1, z1).next();
-            
-            builder.vertex(m, 0, y0, z0).next();
-            builder.vertex(m, 0, y1, z1).next();
-            builder.vertex(m, 0, 0, 0).next();
-        }
         
         stack.pop();
     }
