@@ -951,69 +951,6 @@ public class UIReplaysEditor extends UIElement
 
         Vector2f mouse = new Vector2f(context.mouseX, context.mouseY);
 
-        // Check origin square first (uniform scale)
-        float originSize = Gizmo3D.getOriginSize(1F) * 1.5F;
-        Vector2f originP1 = projectToScreen(mvp, area, -originSize, -originSize, 0);
-        Vector2f originP2 = projectToScreen(mvp, area, originSize, originSize, 0);
-        if (originP1 != null && originP2 != null)
-        {
-            float originDist = Math.max(Math.abs(mouse.x - (originP1.x + originP2.x) / 2F), Math.abs(mouse.y - (originP1.y + originP2.y) / 2F));
-            float originHalfSize = Math.max(Math.abs(originP2.x - originP1.x), Math.abs(originP2.y - originP1.y)) / 2F;
-            if (originDist <= originHalfSize + 10F)
-            {
-                UIPropTransform transform = poseFactory.poseEditor.transform;
-                transform.beginScale();
-                transform.setAxis(Axis.X);
-                return true;
-            }
-        }
-
-        // Check cube/cone handles (axis-specific scale)
-        float handlePos = Gizmo3D.getHandlePosition(1F);
-        float handlePickTol = 25F;
-
-        // X cube handle
-        Vector2f cubeX = projectToScreen(mvp, area, handlePos, 0, 0);
-        if (cubeX != null)
-        {
-            float dist = mouse.distance(cubeX);
-            if (dist <= handlePickTol)
-            {
-                UIPropTransform transform = poseFactory.poseEditor.transform;
-                transform.beginScale();
-                transform.setAxis(Axis.X);
-                return true;
-            }
-        }
-
-        // Y cube handle
-        Vector2f cubeY = projectToScreen(mvp, area, 0, handlePos, 0);
-        if (cubeY != null)
-        {
-            float dist = mouse.distance(cubeY);
-            if (dist <= handlePickTol)
-            {
-                UIPropTransform transform = poseFactory.poseEditor.transform;
-                transform.beginScale();
-                transform.setAxis(Axis.Y);
-                return true;
-            }
-        }
-
-        // Z cone handle
-        Vector2f coneZ = projectToScreen(mvp, area, 0, 0, handlePos);
-        if (coneZ != null)
-        {
-            float dist = mouse.distance(coneZ);
-            if (dist <= handlePickTol)
-            {
-                UIPropTransform transform = poseFactory.poseEditor.transform;
-                transform.beginScale();
-                transform.setAxis(Axis.Z);
-                return true;
-            }
-        }
-
         // Ring picking via screen-space sampling
         Axis ringHit = null;
         float best = Float.MAX_VALUE;
