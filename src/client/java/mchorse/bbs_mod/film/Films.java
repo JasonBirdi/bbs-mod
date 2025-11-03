@@ -12,10 +12,10 @@ import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.properties.IFormProperty;
 import mchorse.bbs_mod.forms.triggers.StateTrigger;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.network.ClientNetwork;
+import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.ContentType;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
@@ -66,6 +66,13 @@ public class Films
 
     public static void playFilm(Film film, boolean withCamera)
     {
+        System.out.println("========================================");
+        System.out.println("BBS MOD: FIRST-PERSON PLAYBACK STARTED");
+        System.out.println("  Film ID: " + film.getId());
+        System.out.println("  With Camera: " + withCamera);
+        System.out.println("  Has First Person: " + film.hasFirstPerson());
+        System.out.println("========================================");
+        
         FirstPersonFilmController filmController = new FirstPersonFilmController(film);
 
         if (withCamera && !film.hasFirstPerson())
@@ -157,7 +164,7 @@ public class Films
             {
                 if (!existed)
                 {
-                    IFormProperty property = FormUtils.getProperty(form, key);
+                    BaseValueBasic property = FormUtils.getProperty(form, key);
 
                     channel.insert(0, channel.getFactory().fromData(property.toData()));
                 }
@@ -169,6 +176,13 @@ public class Films
 
     public void startRecording(Film film, int replayId, int tick)
     {
+        System.out.println("========================================");
+        System.out.println("BBS MOD: FIRST-PERSON RECORDING STARTED");
+        System.out.println("  Film ID: " + film.getId());
+        System.out.println("  Replay ID: " + replayId);
+        System.out.println("  Start Tick: " + tick);
+        System.out.println("========================================");
+        
         Morph morph = Morph.getMorph(MinecraftClient.getInstance().player);
 
         this.recorder = new Recorder(film, morph == null ? null : morph.getForm(), replayId, tick);
@@ -194,6 +208,12 @@ public class Films
 
         if (recorder != null)
         {
+            System.out.println("========================================");
+            System.out.println("BBS MOD: FIRST-PERSON RECORDING STOPPED");
+            System.out.println("  Film ID: " + recorder.film.getId());
+            System.out.println("  Total Ticks Recorded: " + (recorder.getTick() - recorder.initialTick));
+            System.out.println("========================================");
+            
             for (KeyframeChannel<?> channel : recorder.keyframes.getChannels())
             {
                 channel.simplify();
@@ -238,6 +258,12 @@ public class Films
 
             if (next.film.getId().equals(id))
             {
+                System.out.println("========================================");
+                System.out.println("BBS MOD: FIRST-PERSON PLAYBACK STOPPED");
+                System.out.println("  Film ID: " + id);
+                System.out.println("  Final Tick: " + next.getTick());
+                System.out.println("========================================");
+                
                 next.shutdown();
                 it.remove();
 

@@ -25,6 +25,8 @@ public class SwipeActionClip extends ActionClip
     @Override
     public void applyAction(LivingEntity actor, SuperFakePlayer player, Film film, Replay replay, int tick)
     {
+        System.out.println("BBS MOD [ANIMATION PLAYBACK]: Applying hand swipe at tick " + tick);
+        
         super.applyAction(actor, player, film, replay, tick);
 
         if (actor != null)

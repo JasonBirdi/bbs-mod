@@ -12,14 +12,16 @@ import net.minecraft.server.network.ServerPlayerEntity;
 public class ActionRecorder
 {
     private Film film;
+    private ServerPlayerEntity entity;
     private Clips clips = new Clips("...", BBSMod.getFactoryActionClips());
     private int tick;
     private int countdown;
     private int initialTick;
 
-    public ActionRecorder(Film film, int tick, int countdown)
+    public ActionRecorder(Film film, ServerPlayerEntity entity, int tick, int countdown)
     {
         this.film = film;
+        this.entity = entity;
         this.tick = tick;
         this.countdown = countdown;
         this.initialTick = tick;
@@ -73,6 +75,7 @@ public class ActionRecorder
 
         if (player.handSwingTicks == -1)
         {
+            System.out.println("BBS MOD [ANIMATION]: Hand swing detected at tick " + this.tick);
             this.add(new SwipeActionClip());
 
             if (BBSSettings.recordingSwipeDamage.get())
@@ -81,6 +84,7 @@ public class ActionRecorder
 
                 clip.damage.set(2F);
                 this.add(clip);
+                System.out.println("BBS MOD [ANIMATION]:  - Attack action added with 2.0 damage");
             }
         }
 

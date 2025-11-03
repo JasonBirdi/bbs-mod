@@ -17,19 +17,19 @@ import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
-import mchorse.bbs_mod.forms.FormUtilsClient;
-import mchorse.bbs_mod.forms.properties.IFormProperty;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.graphics.Gizmo3D;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.math.molang.MolangParser;
 import mchorse.bbs_mod.math.molang.expressions.MolangExpression;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -66,8 +66,6 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
-import mchorse.bbs_mod.utils.pose.Pose;
-import mchorse.bbs_mod.utils.pose.PoseTransform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.hit.BlockHitResult;
@@ -217,6 +215,9 @@ public class UIReplaysEditor extends UIElement
     public static int getColor(String key)
     {
         String topLevel = StringUtils.fileName(key);
+
+        if (key.startsWith("pose_overlay")) return COLORS.get("pose_overlay");
+        if (key.startsWith("transform_overlay")) return COLORS.get("transform_overlay");
 
         return COLORS.getOrDefault(topLevel, Colors.ACTIVE);
     }
@@ -408,7 +409,10 @@ public class UIReplaysEditor extends UIElement
             BaseValue value = this.replay.keyframes.get(key);
             KeyframeChannel channel = (KeyframeChannel) value;
 
-            sheets.add(new UIKeyframeSheet(getColor(key), false, channel, null).icon(ICONS.get(key)));
+            if (channel != null)
+            {
+                sheets.add(new UIKeyframeSheet(getColor(key), false, channel, null).icon(ICONS.get(key)));
+            }
         }
 
         /* Form properties */
@@ -418,7 +422,7 @@ public class UIReplaysEditor extends UIElement
 
             if (property != null)
             {
-                IFormProperty formProperty = FormUtils.getProperty(this.replay.form.get(), key);
+                BaseValueBasic formProperty = FormUtils.getProperty(this.replay.form.get(), key);
                 UIKeyframeSheet sheet = new UIKeyframeSheet(getColor(key), false, property, formProperty);
 
                 sheets.add(sheet.icon(getIcon(key)));
@@ -449,7 +453,7 @@ public class UIReplaysEditor extends UIElement
 
         for (UIKeyframeSheet sheet : sheets)
         {
-            Object form = sheet.property == null ? null : sheet.property.getForm();
+            Object form = sheet.property == null ? null : FormUtils.getForm(sheet.property);
 
             if (!Objects.equals(lastForm, form))
             {
@@ -508,7 +512,6 @@ public class UIReplaysEditor extends UIElement
                         (sheet.id.equals("pose") || sheet.id.contains("pose_overlay")))
                     {
                         menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () -> this.animationToPoses(modelForm, sheet));
-                        // TODO: menu.action(Icons.UPLOAD, IKey.raw("Copy as .bbs.json animation"), () -> this.copyAaBBSJSON(sheet));
                     }
                 }
 
@@ -545,43 +548,13 @@ public class UIReplaysEditor extends UIElement
         }
     }
 
-    private void copyAaBBSJSON(UIKeyframeSheet sheet)
-    {
-        MolangParser parser = BBSModClient.getModels().parser;
-        Animation animation = new Animation("exported_animation", parser);
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-        List<Keyframe> selected = sheet.selection.getSelected();
-
-        for (Keyframe keyframe : selected)
-        {
-            min = Math.min(min, (int) keyframe.getTick());
-            max = Math.max(min, (int) keyframe.getTick());
-        }
-
-        for (Keyframe keyframe : selected)
-        {
-            if (keyframe.getValue() instanceof Pose pose)
-            {
-                for (Map.Entry<String, PoseTransform> entry : pose.transforms.entrySet())
-                {
-                    String key = entry.getKey();
-                    PoseTransform value = entry.getValue();
-                    AnimationPart part = new AnimationPart(parser);
-
-                    animation.parts.put(key, part);
-                }
-            }
-        }
-    }
-
     private void animationToPoses(ModelForm modelForm, UIKeyframeSheet sheet)
     {
         ModelInstance model = ModelFormRenderer.getModel(modelForm);
 
         if (model != null)
         {
-            UIOverlay.addOverlay(this.getContext(), new UIAnimationToPoseOverlayPanel(this, modelForm, sheet), 200, 197);
+            UIOverlay.addOverlay(this.getContext(), new UIAnimationToPoseOverlayPanel(this::animationToPoseKeyframes, modelForm, sheet), 200, 197);
         }
     }
 
@@ -664,23 +637,12 @@ public class UIReplaysEditor extends UIElement
 
         if (selected != null)
         {
-            String parentId = selected.getParent().getId();
-            
-            // Check if it's any pose_overlay variant (pose_overlay, pose_overlay_1, etc.)
-            if (parentId.contains("pose_overlay"))
+            String id = selected.getParentValue().getId();
+            int index = id.indexOf("pose_overlay");
+
+            if (index >= 0)
             {
-                // Extract the exact pose type from the parent ID (e.g., "pose_overlay_3")
-                int poseIndex = parentId.lastIndexOf("pose");
-                if (poseIndex >= 0)
-                {
-                    type = parentId.substring(poseIndex);
-                    
-                    // Remove any path prefix if present (e.g., "form/pose_overlay_1" -> "pose_overlay_1")
-                    if (type.contains("/"))
-                    {
-                        type = type.substring(type.lastIndexOf("/") + 1);
-                    }
-                }
+                type = id.substring(index);
             }
         }
 
@@ -695,16 +657,16 @@ public class UIReplaysEditor extends UIElement
 
         manager.autoKeys();
 
-        for (IFormProperty formProperty : form.getProperties().values())
+        for (BaseValueBasic formProperty : form.getProperties().values())
         {
-            if (!formProperty.canCreateChannel())
+            if (!formProperty.isVisible())
             {
                 continue;
             }
 
-            manager.action(getIcon(formProperty.getKey()), IKey.constant(formProperty.getKey()), () ->
+            manager.action(getIcon(formProperty.getId()), IKey.constant(formProperty.getId()), () ->
             {
-                this.pickProperty(bone, StringUtils.combinePaths(path, formProperty.getKey()), shift);
+                this.pickProperty(bone, StringUtils.combinePaths(path, formProperty.getId()), shift);
             });
         }
 
@@ -715,7 +677,7 @@ public class UIReplaysEditor extends UIElement
     {
         for (UIKeyframeSheet sheet : this.keyframeEditor.view.getGraph().getSheets())
         {
-            IFormProperty property = sheet.property;
+            BaseValueBasic property = sheet.property;
 
             if (property != null && FormUtils.getPropertyPath(property).equals(key))
             {
@@ -975,10 +937,8 @@ public class UIReplaysEditor extends UIElement
         }
 
         // Scale tolerance with on-screen radius to keep selection easy at any zoom
-        // Apply the same scale as the X/Y/Z axes
-        float scale = BBSSettings.axesScale.get();
-        float R = 0.35F * scale;
-        float tube = 0.06F * scale; // torus tube radius used in render
+        float R = Gizmo3D.getRingRadiusGreen(1F);
+        float tube = Gizmo3D.getRingThickness(1F) * 2F;
         Vector2f pR = projectToScreen(mvp, area, R, 0, 0);
         Vector2f pRt = projectToScreen(mvp, area, R + tube * 0.9F, 0, 0);
         float pickTol = pickTolBase;
@@ -990,6 +950,69 @@ public class UIReplaysEditor extends UIElement
         }
 
         Vector2f mouse = new Vector2f(context.mouseX, context.mouseY);
+
+        // Check origin square first (uniform scale)
+        float originSize = Gizmo3D.getOriginSize(1F) * 1.5F;
+        Vector2f originP1 = projectToScreen(mvp, area, -originSize, -originSize, 0);
+        Vector2f originP2 = projectToScreen(mvp, area, originSize, originSize, 0);
+        if (originP1 != null && originP2 != null)
+        {
+            float originDist = Math.max(Math.abs(mouse.x - (originP1.x + originP2.x) / 2F), Math.abs(mouse.y - (originP1.y + originP2.y) / 2F));
+            float originHalfSize = Math.max(Math.abs(originP2.x - originP1.x), Math.abs(originP2.y - originP1.y)) / 2F;
+            if (originDist <= originHalfSize + 10F)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.X);
+                return true;
+            }
+        }
+
+        // Check cube/cone handles (axis-specific scale)
+        float handlePos = Gizmo3D.getHandlePosition(1F);
+        float handlePickTol = 25F;
+
+        // X cube handle
+        Vector2f cubeX = projectToScreen(mvp, area, handlePos, 0, 0);
+        if (cubeX != null)
+        {
+            float dist = mouse.distance(cubeX);
+            if (dist <= handlePickTol)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.X);
+                return true;
+            }
+        }
+
+        // Y cube handle
+        Vector2f cubeY = projectToScreen(mvp, area, 0, handlePos, 0);
+        if (cubeY != null)
+        {
+            float dist = mouse.distance(cubeY);
+            if (dist <= handlePickTol)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.Y);
+                return true;
+            }
+        }
+
+        // Z cone handle
+        Vector2f coneZ = projectToScreen(mvp, area, 0, 0, handlePos);
+        if (coneZ != null)
+        {
+            float dist = mouse.distance(coneZ);
+            if (dist <= handlePickTol)
+            {
+                UIPropTransform transform = poseFactory.poseEditor.transform;
+                transform.beginScale();
+                transform.setAxis(Axis.Z);
+                return true;
+            }
+        }
 
         // Ring picking via screen-space sampling
         Axis ringHit = null;
@@ -1009,18 +1032,26 @@ public class UIReplaysEditor extends UIElement
         };
 
         final float[] bestRef = new float[] { Float.MAX_VALUE };
-        final float finalR = R; // capture scaled R for lambda
+        final float finalRZ = Gizmo3D.getRingRadiusBlue(1F);
+        final float finalRX = Gizmo3D.getRingRadiusRed(1F);
+        final float finalRY = Gizmo3D.getRingRadiusGreen(1F);
         java.util.function.BiFunction<Axis, Integer, Float> test = (axis, dummy) ->
         {
             float ringLocal = Float.MAX_VALUE;
             Vector2f prev = null;
+            float ringRadius = switch (axis)
+            {
+                case X -> finalRX;
+                case Y -> finalRY;
+                case Z -> finalRZ;
+            };
             for (int i = 0; i <= samples; i++)
             {
                 float t = (float) (2 * Math.PI * i / samples);
                 Vector4f v;
-                if (axis == Axis.Z) v = new Vector4f((float) Math.cos(t) * finalR, (float) Math.sin(t) * finalR, 0, 1);
-                else if (axis == Axis.Y) v = new Vector4f((float) Math.cos(t) * finalR, 0, (float) Math.sin(t) * finalR, 1);
-                else v = new Vector4f(0, (float) Math.cos(t) * finalR, (float) Math.sin(t) * finalR, 1);
+                if (axis == Axis.Z) v = new Vector4f((float) Math.cos(t) * ringRadius, (float) Math.sin(t) * ringRadius, 0, 1);
+                else if (axis == Axis.Y) v = new Vector4f((float) Math.cos(t) * ringRadius, 0, (float) Math.sin(t) * ringRadius, 1);
+                else v = new Vector4f(0, (float) Math.cos(t) * ringRadius, (float) Math.sin(t) * ringRadius, 1);
                 int seg = (int) Math.floor((float) i / samples * period) % period;
                 if (seg >= onCount) { prev = null; continue; }
                 Vector2f cur = project.apply(v);
@@ -1073,6 +1104,7 @@ public class UIReplaysEditor extends UIElement
         }
 
         // Check for axis arrow hits (for positioning) - check these first as they're more specific
+        float scale = BBSSettings.axesScale.get();
         Axis axisHit = tryPickAxisArrow(mvp, mouse, scale, area);
         if (axisHit != null)
         {

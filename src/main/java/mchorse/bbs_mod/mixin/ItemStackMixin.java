@@ -24,6 +24,9 @@ public class ItemStackMixin
     {
         if (user instanceof ServerPlayerEntity player)
         {
+            ItemStack stack = user.getStackInHand(hand);
+            System.out.println("BBS MOD [ANIMATION]: Item used - " + stack.getItem().getName().getString() + " in " + (hand == Hand.MAIN_HAND ? "MAIN" : "OFF") + " hand");
+            
             BBSMod.getActions().addAction(player, () ->
             {
                 UseItemActionClip clip = new UseItemActionClip();

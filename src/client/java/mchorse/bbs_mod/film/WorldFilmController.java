@@ -27,6 +27,8 @@ public class WorldFilmController extends BaseFilmController
         this.duration = film.camera.calculateDuration();
         this.context = new CameraClipContext();
         this.context.clips = film.camera;
+        
+        System.out.println("BBS MOD: Film controller initialized - Duration: " + this.duration + " ticks");
     }
 
     @Override
@@ -53,6 +55,16 @@ public class WorldFilmController extends BaseFilmController
         if (!this.paused)
         {
             this.tick += 1;
+            
+            // Log at regular intervals during playback
+            if (this.tick == 1)
+            {
+                System.out.println("BBS MOD: Playback tick started at tick 1");
+            }
+            else if (this.tick % 100 == 0)
+            {
+                System.out.println("BBS MOD: Playback at tick " + this.tick + " / " + this.duration);
+            }
         }
 
         super.update();

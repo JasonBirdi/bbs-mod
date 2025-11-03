@@ -89,33 +89,6 @@ public class Draw
         builder.vertex(matrix4f, x3, y3, z3).texture(u1, v1).color(r, g, b, a).normal(nx, ny, nz).next();
     }
 
-    /**
-     * Fill a quad for {@link net.minecraft.client.render.VertexFormats#POSITION_TEXTURE_COLOR}. Points should
-     * be supplied in this order:
-     *
-     *     3 -------> 4
-     *     ^
-     *     |
-     *     |
-     *     2 <------- 1
-     *
-     * I.e. bottom left, bottom right, top left, top right, where left is -X and right is +X,
-     * in case of a quad on fixed on Z axis.
-     */
-    public static void fillTexturedQuad(BufferBuilder builder, MatrixStack stack, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float x4, float y4, float z4, float u1, float v1, float u2, float v2, float r, float g, float b, float a)
-    {
-        Matrix4f matrix4f = stack.peek().getPositionMatrix();
-
-        /* 1 - BL, 2 - BR, 3 - TR, 4 - TL */
-        builder.vertex(matrix4f, x2, y2, z2).texture(u1, v2).color(r, g, b, a).next();
-        builder.vertex(matrix4f, x1, y1, z1).texture(u2, v2).color(r, g, b, a).next();
-        builder.vertex(matrix4f, x4, y4, z4).texture(u2, v1).color(r, g, b, a).next();
-
-        builder.vertex(matrix4f, x2, y2, z2).texture(u1, v2).color(r, g, b, a);
-        builder.vertex(matrix4f, x4, y4, z4).texture(u2, v1).color(r, g, b, a);
-        builder.vertex(matrix4f, x3, y3, z3).texture(u1, v1).color(r, g, b, a);
-    }
-
     public static void fillQuad(BufferBuilder builder, MatrixStack stack, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float x4, float y4, float z4, float r, float g, float b, float a)
     {
         Matrix4f matrix4f = stack.peek().getPositionMatrix();
@@ -185,14 +158,6 @@ public class Draw
         fillBox(builder, stack, thickness, -thickness, -thickness, length, thickness, thickness, 1, 0, 0, 1);
         fillBox(builder, stack, -thickness, -thickness, -thickness, thickness, length, thickness, 0, 1, 0, 1);
         fillBox(builder, stack, -thickness, -thickness, thickness, thickness, thickness, length, 0, 0, 1, 1);
-    }
-
-    public static void coolerAxes(MatrixStack stack, float axisSize, float axisOffset)
-    {
-        final float outlineSize = axisSize + 0.005F;
-        final float outlineOffset = axisOffset + 0.005F;
-
-        coolerAxes(stack, axisSize, axisOffset, outlineSize, outlineOffset);
     }
 
     public static void coolerAxes(MatrixStack stack, float axisSize, float axisOffset, float outlineSize, float outlineOffset)
@@ -594,115 +559,5 @@ public class Draw
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
-    /**
-     * Render a refined 3D transformation gizmo with thin arrows and slender rings.
-     * Arrows are used for translation, rings for rotation.
-     */
-    public static void renderTransformationGizmo(MatrixStack stack, float scale, float r, float g, float b, float a)
-    {
-        float axisLength = 0.8F * scale;       // Longer arrows (was 0.5F)
-        float axisThickness = 0.016F * scale;  // Thicker shafts - 2x (was 0.008F)
-        float cubeSize = 0.08F * scale;        // Larger cubes at base - 2x (was 0.04F)
-        float arrowLength = 0.16F * scale;     // Longer arrowheads - 2x (was 0.08F)
-        float arrowWidth = 0.06F * scale;      // Wider arrowheads - 2x (was 0.03F)
-        float ringRadius = 0.35F * scale;      // Keep ring size the same
-        float ringThickness = 0.015F * scale;  // Keep ring thickness the same
-        float originSize = 0.04F * scale;      // Keep origin sphere size the same
-
-        BufferBuilder builder = Tessellator.getInstance().getBuffer();
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-
-        // X axis (red) - horizontal with negative extension
-        renderAxisArrowWithNegative(builder, stack, axisLength, axisThickness, cubeSize, arrowLength, arrowWidth, 1F, 0F, 0F, a);
-        
-        // Y axis (green) - vertical with negative extension
-        stack.push();
-        stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
-        renderAxisArrowWithNegative(builder, stack, axisLength, axisThickness, cubeSize, arrowLength, arrowWidth, 0F, 1F, 0F, a);
-        stack.pop();
-        
-        // Z axis (blue) - depth with negative extension
-        stack.push();
-        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
-        renderAxisArrowWithNegative(builder, stack, axisLength, axisThickness, cubeSize, arrowLength, arrowWidth, 0F, 0F, 1F, a);
-        stack.pop();
-
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        // Rotation rings - thin appearance
-        // XY plane (Z rotation) - blue
-        renderRing(stack, ringRadius, ringThickness, 64, 0F, 0F, 1F, a);
-        
-        // XZ plane (Y rotation) - green
-        stack.push();
-        stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90F));
-        renderRing(stack, ringRadius, ringThickness, 64, 0F, 1F, 0F, a);
-        stack.pop();
-        
-        // YZ plane (X rotation) - red
-        stack.push();
-        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90F));
-        renderRing(stack, ringRadius, ringThickness, 64, 1F, 0F, 0F, a);
-        stack.pop();
-
-        // Central origin point - smaller and brighter
-        renderSphere(stack, originSize, 12, 16, 1F, 1F, 1F, a);
-    }
-
-    /**
-     * Render a single axis arrow with cube at base, arrowhead at tip, and negative axis line.
-     * Creates a refined, thin appearance matching the reference image.
-     */
-    private static void renderAxisArrowWithNegative(BufferBuilder builder, MatrixStack stack, float length, float thickness, float cubeSize, float arrowLength, float arrowWidth, float r, float g, float b, float a)
-    {
-        Matrix4f m = stack.peek().getPositionMatrix();
-
-        // Small cube at the base (origin)
-        float halfCube = cubeSize / 2F;
-        fillBox(builder, stack, -halfCube, -halfCube, -halfCube, halfCube, halfCube, halfCube, r, g, b, a);
-
-        // Positive axis shaft (thinner)
-        float shaftEnd = length - arrowLength;
-        fillBox(builder, stack, 0, -thickness, -thickness, shaftEnd, thickness, thickness, r, g, b, a);
-
-        // Negative axis line (even thinner)
-        float negThickness = thickness * 0.6F;
-        fillBox(builder, stack, -length * 0.3F, -negThickness, -negThickness, 0, negThickness, negThickness, r, g, b, a);
-
-        // Sharp, thin arrowhead (pyramid)
-        float halfArrow = arrowWidth / 2F;
-        
-        // Arrowhead faces - much sharper and thinner
-        // Front face
-        builder.vertex(m, shaftEnd, -halfArrow, -halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, shaftEnd, halfArrow, -halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, length, 0, 0).color(r, g, b, a).next();
-
-        // Back face
-        builder.vertex(m, shaftEnd, halfArrow, halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, shaftEnd, -halfArrow, halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, length, 0, 0).color(r, g, b, a).next();
-
-        // Top face
-        builder.vertex(m, shaftEnd, halfArrow, -halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, shaftEnd, halfArrow, halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, length, 0, 0).color(r, g, b, a).next();
-
-        // Bottom face
-        builder.vertex(m, shaftEnd, -halfArrow, halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, shaftEnd, -halfArrow, -halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, length, 0, 0).color(r, g, b, a).next();
-
-        // Left face
-        builder.vertex(m, shaftEnd, -halfArrow, halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, shaftEnd, halfArrow, halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, length, 0, 0).color(r, g, b, a).next();
-
-        // Right face
-        builder.vertex(m, shaftEnd, halfArrow, -halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, shaftEnd, -halfArrow, -halfArrow).color(r, g, b, a).next();
-        builder.vertex(m, length, 0, 0).color(r, g, b, a).next();
-    }
 
 }
