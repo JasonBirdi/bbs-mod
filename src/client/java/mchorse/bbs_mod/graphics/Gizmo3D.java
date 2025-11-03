@@ -14,20 +14,15 @@ import org.joml.Matrix4f;
 
 public class Gizmo3D
 {
-    private static final float AXIS_LENGTH = 1.0F;
-    private static final float AXIS_THICKNESS = 0.004F;
     private static final float ARROW_LENGTH = 0.12F;
-    private static final float ARROW_WIDTH = 0.025F;
+    private static final float ARROW_WIDTH = 0.03F;
     private static final float RING_RADIUS_BLUE = 0.32F;
     private static final float RING_RADIUS_RED = 0.36F;
     private static final float RING_RADIUS_GREEN = 0.4F;
-    private static final float RING_THICKNESS = 0.004F;
-    private static final float ORIGIN_SIZE = 0.022F;
-    private static final float ORIGIN_OUTLINE = 0.002F;
-    private static final float NEG_AXIS_LENGTH = 0.3F;
-    private static final float NEG_AXIS_THICKNESS = 0.004F;
-    private static final float HANDLE_SIZE = 0.05F;
-    private static final float HANDLE_POSITION = 0.15F;
+    private static final float RING_THICKNESS = 0.005F;
+    private static final float ARROW_START_OFFSET = 0.42F;
+    private static final float ORIGIN_SIZE = 0.024F;
+    private static final float ORIGIN_OUTLINE = 0.003F;
 
     private static final int RING_SEGMENTS = 64;
 
@@ -59,17 +54,6 @@ public class Gizmo3D
         renderRotationRing(stack, Axis.Y, scale, alpha);
         renderRotationRing(stack, Axis.Z, scale, alpha);
 
-        builder = Tessellator.getInstance().getBuffer();
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-
-        renderCubeHandle(builder, stack, Axis.X, scale, alpha);
-        renderCubeHandle(builder, stack, Axis.Y, scale, alpha);
-        renderCubeHandle(builder, stack, Axis.Z, scale, alpha);
-
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        renderOriginSquare(stack, scale, alpha);
-
         RenderSystem.enableCull();
         RenderSystem.enableDepthTest();
         RenderSystem.disableBlend();
@@ -91,59 +75,15 @@ public class Gizmo3D
             case Z -> stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
         }
 
-        float axisLen = AXIS_LENGTH * scale;
-        float thickness = AXIS_THICKNESS * scale;
+        float arrowStart = ARROW_START_OFFSET * scale;
         float arrowLen = ARROW_LENGTH * scale;
         float arrowWidth = ARROW_WIDTH * scale;
-        float negLen = NEG_AXIS_LENGTH * scale;
-        float negThick = NEG_AXIS_THICKNESS * scale;
 
-        renderNegativeAxis(builder, stack, negLen, negThick, r, g, b, alpha * 0.4F);
-        renderAxisShaft(builder, stack, axisLen - arrowLen, thickness, r, g, b, alpha);
-        renderArrowhead(builder, stack, axisLen - arrowLen, axisLen, arrowWidth, r, g, b, alpha);
+        renderArrowhead(builder, stack, arrowStart, arrowStart + arrowLen, arrowWidth, r, g, b, alpha);
 
         stack.pop();
     }
 
-    private static void renderCubeHandle(BufferBuilder builder, MatrixStack stack, Axis axis, float scale, float alpha)
-    {
-        float[] color = getAxisColor(axis);
-        float r = color[0];
-        float g = color[1];
-        float b = color[2];
-        float size = HANDLE_SIZE * scale;
-        float pos = HANDLE_POSITION * scale;
-
-        stack.push();
-
-        switch (axis)
-        {
-            case X -> stack.translate(pos, 0, 0);
-            case Y -> {
-                stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90F));
-                stack.translate(pos, 0, 0);
-            }
-            case Z -> {
-                stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90F));
-                stack.translate(pos, 0, 0);
-            }
-        }
-
-        float half = size / 2F;
-        Draw.fillBox(builder, stack, -half, -half, -half, half, half, half, r, g, b, alpha);
-
-        stack.pop();
-    }
-
-    private static void renderNegativeAxis(BufferBuilder builder, MatrixStack stack, float length, float thickness, float r, float g, float b, float a)
-    {
-        Draw.fillBox(builder, stack, -length, -thickness, -thickness, 0, thickness, thickness, r, g, b, a);
-    }
-
-    private static void renderAxisShaft(BufferBuilder builder, MatrixStack stack, float length, float thickness, float r, float g, float b, float a)
-    {
-        Draw.fillBox(builder, stack, 0, -thickness, -thickness, length, thickness, thickness, r, g, b, a);
-    }
 
     private static void renderArrowhead(BufferBuilder builder, MatrixStack stack, float base, float tip, float width, float r, float g, float b, float a)
     {
@@ -200,8 +140,9 @@ public class Gizmo3D
 
         Matrix4f m = stack.peek().getPositionMatrix();
 
-        float inner = Math.max(radius - thickness, 0.0001F);
-        float outer = radius + thickness;
+        float halfThickness = thickness / 2F;
+        float inner = Math.max(radius - halfThickness, 0.0001F);
+        float outer = radius + halfThickness;
 
         for (int i = 0; i < segments; i++)
         {
@@ -225,14 +166,6 @@ public class Gizmo3D
             builder.vertex(m, co0, so0, 0).color(r, g, b, a).next();
             builder.vertex(m, ci1, si1, 0).color(r, g, b, a).next();
             builder.vertex(m, co1, so1, 0).color(r, g, b, a).next();
-
-            builder.vertex(m, ci1, si1, 0).color(r, g, b, a).next();
-            builder.vertex(m, ci0, si0, 0).color(r, g, b, a).next();
-            builder.vertex(m, co0, so0, 0).color(r, g, b, a).next();
-
-            builder.vertex(m, co1, so1, 0).color(r, g, b, a).next();
-            builder.vertex(m, ci1, si1, 0).color(r, g, b, a).next();
-            builder.vertex(m, co0, so0, 0).color(r, g, b, a).next();
         }
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
@@ -317,7 +250,7 @@ public class Gizmo3D
 
     public static float getAxisLength(float scale)
     {
-        return AXIS_LENGTH * scale * BBSSettings.axesScale.get();
+        return ARROW_LENGTH * scale * BBSSettings.axesScale.get();
     }
 
     public static float getRingRadius(float scale)
@@ -345,21 +278,6 @@ public class Gizmo3D
         return RING_THICKNESS * scale * BBSSettings.axesScale.get();
     }
 
-    public static float getAxisThickness(float scale)
-    {
-        return AXIS_THICKNESS * scale * BBSSettings.axesScale.get();
-    }
-
-    public static float getHandleSize(float scale)
-    {
-        return HANDLE_SIZE * scale * BBSSettings.axesScale.get();
-    }
-
-    public static float getHandlePosition(float scale)
-    {
-        return HANDLE_POSITION * scale * BBSSettings.axesScale.get();
-    }
-
     public static float getOriginSize(float scale)
     {
         return ORIGIN_SIZE * scale * BBSSettings.axesScale.get();
@@ -368,6 +286,11 @@ public class Gizmo3D
     public static float getOriginOutline(float scale)
     {
         return ORIGIN_OUTLINE * scale * BBSSettings.axesScale.get();
+    }
+
+    public static float getArrowStartOffset(float scale)
+    {
+        return ARROW_START_OFFSET * scale * BBSSettings.axesScale.get();
     }
 }
 
