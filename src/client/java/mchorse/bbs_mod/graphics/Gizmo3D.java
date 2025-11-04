@@ -19,7 +19,7 @@ public class Gizmo3D
     private static final float RING_RADIUS_BLUE = 0.32F;
     private static final float RING_RADIUS_RED = 0.36F;
     private static final float RING_RADIUS_GREEN = 0.4F;
-    private static final float RING_THICKNESS = 0.005F;
+    private static final float RING_THICKNESS = 0.01F;
     private static final float ARROW_START_OFFSET = 0.42F;
     private static final float ORIGIN_SIZE = 0.024F;
     private static final float ORIGIN_OUTLINE = 0.003F;
