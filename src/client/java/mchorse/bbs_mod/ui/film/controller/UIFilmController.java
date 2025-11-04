@@ -1168,45 +1168,49 @@ public class UIFilmController extends UIElement
             String bone = null;
             boolean local = false;
 
-            if (editor instanceof UIPoseKeyframeFactory pose)
+            // Only show gizmo when a keyframe is actually selected
+            if (editor != null && editor.getKeyframe() != null)
             {
-                UIKeyframeSheet sheet = keyframeEditor.getSheet(editor.getKeyframe());
-                String currentFirst = pose.poseEditor.groups.getCurrentFirst();
-
-                if (sheet != null && (sheet.id.endsWith("pose") || sheet.id.contains("pose_overlay")))
+                if (editor instanceof UIPoseKeyframeFactory pose)
                 {
-                    String separator = sheet.id.endsWith("/pose") || sheet.id.contains("/pose_overlay") ? "/" : "";
-                    int separatorIndex = sheet.id.lastIndexOf(separator + "pose");
-                    
-                    if (separatorIndex > 0 && !separator.isEmpty())
+                    UIKeyframeSheet sheet = keyframeEditor.getSheet(editor.getKeyframe());
+                    String currentFirst = pose.poseEditor.groups.getCurrentFirst();
+
+                    if (sheet != null && (sheet.id.endsWith("pose") || sheet.id.contains("pose_overlay")))
                     {
-                        bone = sheet.id.substring(0, separatorIndex + 1) + currentFirst;
+                        String separator = sheet.id.endsWith("/pose") || sheet.id.contains("/pose_overlay") ? "/" : "";
+                        int separatorIndex = sheet.id.lastIndexOf(separator + "pose");
+                        
+                        if (separatorIndex > 0 && !separator.isEmpty())
+                        {
+                            bone = sheet.id.substring(0, separatorIndex + 1) + currentFirst;
+                        }
+                        else
+                        {
+                            bone = currentFirst;
+                        }
+                        
+                        local = pose.poseEditor.transform.isLocal();
                     }
                     else
                     {
-                        bone = currentFirst;
+                        // Sheet check failed
                     }
-                    
-                    local = pose.poseEditor.transform.isLocal();
                 }
-                else
+                else if (editor instanceof UITransformKeyframeFactory)
                 {
-                    // Sheet check failed
-                }
-            }
-            else if (editor instanceof UITransformKeyframeFactory)
-            {
-                UIKeyframeSheet sheet = keyframeEditor.getSheet(editor.getKeyframe());
+                    UIKeyframeSheet sheet = keyframeEditor.getSheet(editor.getKeyframe());
 
-                if (sheet != null && sheet.id.endsWith("transform"))
+                    if (sheet != null && sheet.id.endsWith("transform"))
+                    {
+                        bone = sheet.id.endsWith("/transform") ? sheet.id.substring(0, sheet.id.lastIndexOf('/')) : "";
+                    }
+                }
+
+                if (bone != null)
                 {
-                    bone = sheet.id.endsWith("/transform") ? sheet.id.substring(0, sheet.id.lastIndexOf('/')) : "";
+                    return new Pair<>(bone, local);
                 }
-            }
-
-            if (bone != null)
-            {
-                return new Pair<>(bone, local);
             }
         }
 
